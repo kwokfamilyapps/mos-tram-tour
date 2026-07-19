@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>UE5 Tram Tour — 加 Component 教學</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:"Noto Sans TC","PingFang HK","Microsoft JhengHei",sans-serif;background:#1a1a2e;color:#f0e6d3;padding:20px;line-height:1.8}
+h1{font-size:32px;color:#c9a84c;margin-bottom:8px}
+h2{font-size:28px;color:#c9a84c;margin:28px 0 12px;border-left:4px solid #c9a84c;padding-left:12px}
+h3{font-size:26px;color:#f0e6d3;margin:20px 0 8px}
+p,li{font-size:24px;margin-bottom:8px}
+ol,ul{padding-left:28px}
+li{margin-bottom:6px}
+.step{background:rgba(255,255,255,.05);border-radius:12px;padding:16px;margin:12px 0;border:1px solid rgba(201,168,76,.2)}
+.step strong{color:#c9a84c}
+.code{background:rgba(0,0,0,.4);border-radius:8px;padding:12px 16px;font-family:monospace;font-size:20px;margin:8px 0;overflow-x:auto;white-space:pre-wrap;word-break:break-all}
+.note{background:rgba(201,168,76,.1);border-left:4px solid #c9a84c;padding:12px 16px;border-radius:0 8px 8px 0;margin:12px 0;font-size:22px}
+.warn{background:rgba(204,34,34,.1);border-left:4px solid #cc2222;padding:12px 16px;border-radius:0 8px 8px 0;margin:12px 0;font-size:22px}
+.check{color:#44cc44;font-weight:700}
+hr{border:none;border-top:1px solid rgba(240,230,211,.1);margin:24px 0}
+table{width:100%;border-collapse:collapse;font-size:22px;margin:12px 0}
+th,td{border:1px solid rgba(240,230,211,.2);padding:8px 12px;text-align:left}
+th{background:rgba(201,168,76,.2);color:#c9a84c}
+</style>
+</head>
+<body>
+
+<h1>🚃 UE5 礦場 Tram Tour</h1>
+<p style="font-size:24px;color:#a09080;margin-bottom:20px">加 Component 逐 step 教學 | 需時約 15 分鐘</p>
+
+<div class="note">
+<strong>📂 專案位置：</strong><br>
+<code>C:\Users\verno\Documents\Unreal Projects\MineTrain\MineTrain.uproject</code><br>
+<strong>雙擊 .uproject 就會開 UE5</strong>
+</div>
+
+<div class="warn">
+<strong>⚠️ 重要提醒：</strong><br>
+UE5 第一次開專案可能 compile shader，等佢 load 完（底部 Status Bar 冇野行緊）先開始做。
+</div>
+
+<!-- ==================== -->
+<h2>📋 總覽：要加啲咩 Component</h2>
+<table>
+<tr><th>Blueprint</th><th>要加嘅 Component</th></tr>
+<tr><td>BP_TrackSpline</td><td>Spline Component</td></tr>
+<tr><td>BP_MineCart</td><td>StaticMesh + SpringArm + Camera</td></tr>
+<tr><td>BP_NarratorStation</td><td>BoxCollision + Audio + TextRender</td></tr>
+</table>
+
+<hr>
+
+<!-- ==================== -->
+<h2>🎯 Step 1：開 BP_TrackSpline 加路軌</h2>
+
+<div class="step">
+<strong>1.</strong> 喺 Content Browser（左下角），㩒路徑：<br>
+<div class="code">Blueprints → Core</div>
+</div>
+
+<div class="step">
+<strong>2.</strong> 雙擊 <strong>BP_TrackSpline</strong> 打開佢<br>
+（會彈出 Blueprint Editor 新視窗）
+</div>
+
+<div class="step">
+<strong>3.</strong> 㩒「<strong>Add Component</strong>」按鈕（左上角綠色 + 號）<br>
+<img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='30'%3E%3Crect width='200' height='30' fill='%232a7a2a' rx='6'/%3E%3Ctext x='50%25' y='50%25' fill='white' font-size='16' text-anchor='middle' dominant-baseline='middle'%3E➕ Add Component%3C/text%3E%3C/svg%3E" style="margin:8px 0;display:block">
+</div>
+
+<div class="step">
+<strong>4.</strong> 喺 Search bar 打 <strong>Spline</strong><br>
+㩒 <strong>Spline Component</strong>
+</div>
+
+<div class="step">
+<strong>5.</strong> 喺右邊 Details Panel，將 Name 改做：<br>
+<div class="code">TrackSpline</div>
+</div>
+
+<div class="step">
+<strong>6.</strong> 㩒工具列 <strong>「Compile」</strong>（藍色按鈕）→ 然後 <strong>「Save」</strong><br>
+<span class="check">✅ 完成！可以 Close 視窗</span>
+</div>
+
+<hr>
+
+<!-- ==================== -->
+<h2>🎯 Step 2：開 BP_MineCart 加礦車 Component</h2>
+
+<div class="step">
+<strong>1.</strong> 返 Content Browser → <strong>Blueprints → Core</strong><br>
+雙擊 <strong>BP_MineCart</strong>
+</div>
+
+<h3>2a. 加 CartMesh（礦車車身）</h3>
+<div class="step">
+㩒 <strong>Add Component</strong> → Search <strong>Static Mesh</strong><br>
+㩒 <strong>Static Mesh Component</strong> → 改名 <strong>CartMesh</strong><br>
+Location 設做：<strong>X=0, Y=0, Z=50</strong>
+</div>
+
+<h3>2b. 加 CameraArm（鏡頭手臂）</h3>
+<div class="step">
+㩒 <strong>Add Component</strong> → Search <strong>Spring Arm</strong><br>
+㩒 <strong>Spring Arm Component</strong> → 改名 <strong>CameraArm</strong><br>
+Location 設做：<strong>X=0, Y=-300, Z=200</strong><br>
+Rotation 設做：<strong>Pitch=0, Yaw=-10, Roll=0</strong>
+</div>
+
+<div class="step">
+喺右邊 Details Panel，向下 scroll 搵 <strong>Lag</strong> 欄位：<br>
+☑ <strong>Enable Camera Rotation Lag</strong><br>
+☑ <strong>Enable Camera Lag</strong><br>
+<strong>Camera Lag Speed</strong> = <strong>5.0</strong>
+</div>
+
+<h3>2c. 加 PlayerCamera（玩家鏡頭）</h3>
+<div class="step">
+㩒 <strong>Add Component</strong> → Search <strong>Camera</strong><br>
+㩒 <strong>Camera Component</strong> → 改名 <strong>PlayerCamera</strong><br>
+<strong>重要：</strong>拖住 PlayerCamera，放入 <strong>CameraArm</strong> 下面（變成佢嘅 child）<br>
+Location 全部 = <strong>0</strong>
+</div>
+
+<div class="step">
+最後㩒 <strong>Compile</strong> → <strong>Save</strong><br>
+<span class="check">✅ BP_MineCart 完成！Close 視窗</span>
+</div>
+
+<hr>
+
+<!-- ==================== -->
+<h2>🎯 Step 3：開 BP_NarratorStation 加車站 Component</h2>
+
+<div class="step">
+<strong>1.</strong> Content Browser → <strong>Blueprints → Stations</strong><br>
+雙擊 <strong>BP_NarratorStation</strong>
+</div>
+
+<h3>3a. 加 TriggerZone（感應區）</h3>
+<div class="step">
+㩒 <strong>Add Component</strong> → Search <strong>Box</strong><br>
+㩒 <strong>Box Collision</strong> → 改名 <strong>TriggerZone</strong><br>
+Location：<strong>X=0, Y=0, Z=100</strong><br>
+Box Extent：<strong>X=200, Y=200, Z=200</strong><br>
+Collision Enabled：揀 <strong>Query Only (No Physics Collision)</strong>
+</div>
+
+<h3>3b. 加 NarrationAudio（語音播放）</h3>
+<div class="step">
+㩒 <strong>Add Component</strong> → Search <strong>Audio</strong><br>
+㩒 <strong>Audio Component</strong> → 改名 <strong>NarrationAudio</strong><br>
+Auto Activate：<strong>❌ 唔好 tick</strong>（我哋用程式控制播放）
+</div>
+
+<h3>3c. 加 StationLabel（站名標籤）</h3>
+<div class="step">
+㩒 <strong>Add Component</strong> → Search <strong>Text Render</strong><br>
+㩒 <strong>Text Render Component</strong> → 改名 <strong>StationLabel</strong><br>
+Location：<strong>X=0, Y=0, Z=400</strong><br>
+Text：打 <strong>車站</strong>（之後程式會改）<br>
+World Size：<strong>80</strong><br>
+Color：㩒色揀 <strong>淺金色</strong>（R=255, G=255, B=200）<br>
+Horizontal Alignment：<strong>Center</strong>
+</div>
+
+<div class="step">
+最後㩒 <strong>Compile</strong> → <strong>Save</strong><br>
+<span class="check">✅ BP_NarratorStation 完成！Close 視窗</span>
+</div>
+
+<hr>
+
+<!-- ==================== -->
+<h2>✅ 完成 Check List</h2>
+
+<table>
+<tr><th>#</th><th>步驟</th><th>狀態</th></tr>
+<tr><td>1</td><td>雙擊 MineTrain.uproject 開 UE5</td><td>⬜</td></tr>
+<tr><td>2</td><td>BP_TrackSpline → + Spline Component → Compile</td><td>⬜</td></tr>
+<tr><td>3</td><td>BP_MineCart → + StaticMesh + SpringArm + Camera → Compile</td><td>⬜</td></tr>
+<tr><td>4</td><td>BP_NarratorStation → + Box + Audio + TextRender → Compile</td><td>⬜</td></tr>
+</table>
+
+<div class="note">
+<strong>📱 搞掂之後：</strong><br>
+影張 cap 圖俾我睇，我確認啲 Component 加得啱唔啱。
+</div>
+
+<div class="warn">
+<strong>🛑 卡關？</strong><br>
+• 搵唔到 Button → cap 圖俾我<br>
+• 打錯字 → 改返就得<br>
+• UE5 好慢 → 等佢 load 完<br>
+• 我喺 Telegram，隨時搵我
+</div>
+
+<p style="text-align:center;color:#a09080;font-size:20px;margin-top:40px">
+由 無虛 (mvmv) 生成 · 2026-07-19
+</p>
+
+</body>
+</html>
