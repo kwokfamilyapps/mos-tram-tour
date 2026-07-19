@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>馬鞍山鐵礦電車導賞團 🚃</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { width: 100%; height: 100%; overflow: hidden; touch-action: none; background: #000; font-family: "Noto Sans TC","PingFang HK","Microsoft JhengHei",sans-serif; }
+#canvas-container { width: 100vw; height: 100vh; display: block; }
+canvas { display: block; width: 100% !important; height: 100% !important; }
+
+/* Loading screen */
+#loading { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #1a1a2e; color: #f0e6d3; }
+#loading h1 { font-size: 28px; margin-bottom: 12px; letter-spacing: 2px; }
+#loading p { font-size: 18px; opacity: 0.7; }
+#loading .loader { width: 48px; height: 48px; border: 4px solid #f0e6d3; border-top-color: #c9a84c; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Bottom info panel */
+#info-panel {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
+  background: linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.85) 60%, transparent 100%);
+  color: #f0e6d3; padding: 60px 20px 30px;
+  transform: translateY(100%); transition: transform 0.5s cubic-bezier(0.22,1,0.36,1);
+  pointer-events: none; max-height: 50vh; overflow-y: auto;
+}
+#info-panel.show { transform: translateY(0); pointer-events: auto; }
+#info-panel .station-num { font-size: 16px; color: #c9a84c; margin-bottom: 6px; letter-spacing: 1px; }
+#info-panel .station-name { font-size: 28px; font-weight: 700; margin-bottom: 4px; }
+#info-panel .station-name-en { font-size: 16px; color: #a09080; margin-bottom: 10px; }
+#info-panel .station-desc { font-size: 18px; line-height: 1.6; opacity: 0.9; }
+
+/* Top HUD */
+#hud { position: fixed; top: 0; left: 0; right: 0; z-index: 15; padding: 12px 16px; display: flex; justify-content: space-between; align-items: flex-start; pointer-events: none; }
+#hud .progress { background: rgba(0,0,0,0.6); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border-radius: 20px; padding: 6px 14px; font-size: 15px; color: #c9a84c; }
+#hud .title { font-size: 16px; color: rgba(240,230,211,0.7); text-align: right; }
+
+/* Tap hint */
+#tap-hint { position: fixed; bottom: 50%; left: 50%; transform: translate(-50%,50%); z-index: 10; color: rgba(240,230,211,0.5); font-size: 22px; text-align: center; animation: pulse 2s ease-in-out infinite; pointer-events: none; }
+@keyframes pulse { 0%,100% { opacity: 0.3; } 50% { opacity: 0.8; } }
+
+/* Auto-advance badge */
+#auto-badge { position: fixed; top: 52px; left: 50%; transform: translateX(-50%); z-index: 15; background: rgba(0,0,0,0.6); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border-radius: 12px; padding: 4px 14px; font-size: 13px; color: #a09080; display: none; }
+
+/* Buttons */
+#controls { position: fixed; bottom: 50%; right: 12px; z-index: 15; display: flex; flex-direction: column; gap: 4px; transform: translateY(50%); pointer-events: none; }
+#controls button { pointer-events: auto; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); border: 1px solid rgba(240,230,211,0.2); color: #f0e6d3; font-size: 28px; width: 52px; height: 52px; border-radius: 26px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.2s; }
+#controls button:active { background: rgba(201,168,76,0.4); }
+
+/* Station indicator dots */
+#station-dots { position: fixed; top: 52px; left: 50%; transform: translateX(-50%); z-index: 15; display: flex; gap: 5px; align-items: center; }
+#station-dots .dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(240,230,211,0.25); transition: all 0.3s; }
+#station-dots .dot.active { width: 24px; border-radius: 4px; background: #c9a84c; }
+#station-dots .dot.passed { background: rgba(201,168,76,0.5); }
+#station-dots .dot.pause { background: #e74c3c; width: 12px; height: 12px; border-radius: 50%; }
+</style>
+</head>
+<body>
+<div id="loading">
+  <div class="loader"></div>
+  <h1>馬鞍山鐵礦電車導賞</h1>
+  <p>載入中...</p>
+</div>
+
+<div id="canvas-container"></div>
+
+<div id="hud">
+  <div class="progress" id="progressDisplay">第1站 / 10</div>
+  <div class="title">🚃 馬鞍山礦場導賞</div>
+</div>
+
+<div id="station-dots"></div>
+<div id="auto-badge">⏱ 自動下一站</div>
+<div id="tap-hint">👆 點按畫面</div>
+
+<div id="controls">
+  <button id="btnPrev" aria-label="上一站">▲</button>
+  <button id="btnNext" aria-label="下一站">▼</button>
+</div>
+
+<div id="info-panel">
+  <div class="station-num" id="stationNum">第1站 / 10</div>
+  <div class="station-name" id="stationName">240ML 礦洞口</div>
+  <div class="station-name-en" id="stationNameEn">240ML Mine Entrance</div>
+  <div class="station-desc" id="stationDesc">方形混凝土礦洞口，海拔240米，上方兩個圓形排氣扇洞口。</div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+// ─── Station Data ───
+const STATIONS = [
+  { name: '240ML 礦洞口', nameEn: '240ML Mine Entrance', pos: [0,0,0], pause:0,
+    desc:'方形混凝土礦洞口，海拔240米，上方兩個圓形排氣扇洞口。建於1950年代，為礦場主要入口。' },
+  { name: '礦洞隧道', nameEn: 'Mine Tunnel', pos: [40,2,-30], pause:0,
+    desc:'穿越礦洞隧道，燈光昏暗，岩壁滲水，感受礦工的日常工作環境。' },
+  { name: '110ML 主隧道', nameEn: '110ML Main Tunnel', pos: [80,4,-20], pause:0,
+    desc:'海拔110米半圓拱形入口，可見電動礦車鐵軌。礦石由此運出。' },
+  { name: '選礦廠', nameEn: 'Ore Processing Plant', pos: [110,6,10], pause:5,
+    desc:'停留5分鐘。七步選礦流程：破碎→振篩→乾磁選→球磨→濕磁選→脫磁→脫水。' },
+  { name: '恩光堂 ⛪', nameEn: 'Yan Kwong Church', pos: [90,8,60], pause:0,
+    desc:'白色外牆、青苔屋頂、鐘樓上紅十字架。建於1952年，為礦工及家屬的心靈寄託。' },
+  { name: '天光墟 🌅', nameEn: 'Tin Kwong Hui (Dawn Market)', pos: [50,10,90], pause:8,
+    desc:'清晨6至7時天光墟，教會閘口小徑兩旁擺滿菜檔、魚檔、豬肉檔。停留8分鐘。' },
+  { name: '平安橋 🌉', nameEn: 'Ping On Bridge', pos: [0,12,100], pause:0,
+    desc:'建於1962-63年，橋頭立有石碑。連接礦村與市鎮的重要通道。' },
+  { name: '礦村四區', nameEn: 'Mining Village Zone 4', pos: [-50,10,80], pause:0,
+    desc:'四號礦工宿舍區，建築為石屎牆、鐵皮頂，礦工家庭聚居地。' },
+  { name: '碼頭區', nameEn: 'Pier Area (Yiu On Estate)', pos: [-90,6,40], pause:0,
+    desc:'耀安邨碼頭。三千噸級「大埔山」「大埔石」號貨船，滿載鐵礦石運往日本。' },
+  { name: '總結 🎬', nameEn: 'Conclusion', pos: [-110,2,0], pause:0,
+    desc:'感謝參與馬鞍山鐵礦電車導賞團！礦場於1976年關閉，這段歷史永遠留在香港人的記憶中。' }
+];
+
+// ─── DOM refs ───
+const container = document.getElementById('canvas-container');
+const panel = document.getElementById('info-panel');
+const stationNum = document.getElementById('stationNum');
+const stationName = document.getElementById('stationName');
+const stationNameEn = document.getElementById('stationNameEn');
+const stationDesc = document.getElementById('stationDesc');
+const progressDisplay = document.getElementById('progressDisplay');
+const tapHint = document.getElementById('tap-hint');
+const autoBadge = document.getElementById('auto-badge');
+const dotsContainer = document.getElementById('station-dots');
+const loading = document.getElementById('loading');
+
+// ─── Scene Setup ───
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1a1a2e);
+scene.fog = new THREE.Fog(0x1a1a2e, 150, 350);
+
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 500);
+camera.position.set(0, 15, 30);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+container.appendChild(renderer.domElement);
+
+const labelRenderer = new CSS2DRenderer();
+labelRenderer.setSize(window.innerWidth, window.innerHeight);
+labelRenderer.domElement.style.position = 'absolute';
+labelRenderer.domElement.style.top = '0';
+labelRenderer.domElement.style.left = '0';
+labelRenderer.domElement.style.pointerEvents = 'none';
+container.appendChild(labelRenderer.domElement);
+
+// ─── Controls ───
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.maxPolarAngle = Math.PI / 2.1;
+controls.minDistance = 5;
+controls.maxDistance = 80;
+controls.target.set(0, 2, 0);
+controls.update();
+
+// ─── Lighting ───
+// Dawn sky: warm golden light
+const ambient = new THREE.AmbientLight(0x445566, 0.3);
+scene.add(ambient);
+
+const hemi = new THREE.HemisphereLight(0xffcc88, 0x334466, 0.6);
+scene.add(hemi);
+
+const sun = new THREE.DirectionalLight(0xffaa66, 1.8);
+sun.position.set(-30, 40, 20);
+sun.castShadow = true;
+sun.shadow.mapSize.width = 1024;
+sun.shadow.mapSize.height = 1024;
+sun.shadow.camera.near = 0.5;
+sun.shadow.camera.far = 150;
+sun.shadow.camera.left = -80;
+sun.shadow.camera.right = 80;
+sun.shadow.camera.top = 80;
+sun.shadow.camera.bottom = -80;
+scene.add(sun);
+
+const fill = new THREE.DirectionalLight(0x88bbff, 0.3);
+fill.position.set(20, 10, -30);
+scene.add(fill);
+
+// Volumetric-like mist particles
+function createMistParticles() {
+  const count = 600;
+  const geo = new THREE.BufferGeometry();
+  const pos = new Float32Array(count * 3);
+  for (let i = 0; i < count; i++) {
+    pos[i*3] = (Math.random()-0.5)*300;
+    pos[i*3+1] = Math.random()*20 + 1;
+    pos[i*3+2] = (Math.random()-0.5)*300;
+  }
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  const mat = new THREE.PointsMaterial({
+    color: 0xddccaa, size: 0.8, transparent: true, opacity: 0.15,
+    blending: THREE.AdditiveBlending, depthWrite: false
+  });
+  const pts = new THREE.Points(geo, mat);
+  scene.add(pts);
+}
+createMistParticles();
+
+// ─── Terrain ───
+function createTerrain() {
+  // Flat ground
+  const groundGeo = new THREE.PlaneGeometry(350, 350, 1, 1);
+  const groundMat = new THREE.MeshStandardMaterial({ color: 0x4a5a3a, roughness: 0.9 });
+  const ground = new THREE.Mesh(groundGeo, groundMat);
+  ground.rotation.x = -Math.PI / 2;
+  ground.position.y = -0.5;
+  ground.receiveShadow = true;
+  scene.add(ground);
+
+  // Mountains (simple large cones/domes)
+  const mountainPositions = [
+    [-60,-20,40], [-40,-30,60], [70,-40,50], [100,-20,80],
+    [-80,-10,-50], [60,10,-60], [-100,-20,-30], [120,0,40],
+    [-30,-40,120], [40,-30,110], [-70,-50,100], [90,-30,-40]
+  ];
+  mountainPositions.forEach(([x,_,z]) => {
+    const h = 15 + Math.random() * 35;
+    const r = 15 + Math.random() * 25;
+    const geo = new THREE.ConeGeometry(r, h, 8);
+    const mat = new THREE.MeshStandardMaterial({
+      color: new THREE.Color().setHSL(0.25 + Math.random()*0.06, 0.3, 0.25 + Math.random()*0.15),
+      roughness: 0.85, flatShading: true
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(x, h/2 - 0.5, z);
+    mesh.castShadow = true;
+    mesh.receiveShadow = true;
+    mesh.rotation.y = Math.random() * Math.PI;
+    scene.add(mesh);
+  });
+}
+createTerrain();
+
+// ─── Buildings ───
+function createChurch(pos) {
+  const group = new THREE.Group();
+  // Main body
+  const body = new THREE.Mesh(
+    new THREE.BoxGeometry(8, 5, 10),
+    new THREE.MeshStandardMaterial({ color: 0xf5f0e6, roughness: 0.8 })
+  );
+  body.position.y = 2.5;
+  body.castShadow = true;
+  group.add(body);
+
+  // Roof
+  const roof = new THREE.Mesh(
+    new THREE.ConeGeometry(6, 2.5, 4),
+    new THREE.MeshStandardMaterial({ color: 0x4a5a3a, roughness: 0.9 })
+  );
+  roof.position.y = 5.5;
+  roof.rotation.y = Math.PI/4;
+  roof.castShadow = true;
+  group.add(roof);
+
+  // Bell tower
+  const tower = new THREE.Mesh(
+    new THREE.BoxGeometry(3, 8, 3),
+    new THREE.MeshStandardMaterial({ color: 0xf0e8d5, roughness: 0.7 })
+  );
+  tower.position.set(-3, 4, 3);
+  tower.castShadow = true;
+  group.add(tower);
+
+  // Red cross
+  const crossMat = new THREE.MeshStandardMaterial({ color: 0xcc2222, emissive: 0x661111, emissiveIntensity: 0.3 });
+  const barH = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.35, 0.3), crossMat);
+  barH.position.set(-3, 7.5, 4.5);
+  group.add(barH);
+  const barV = new THREE.Mesh(new THREE.BoxGeometry(0.35, 2.2, 0.3), crossMat);
+  barV.position.set(-3, 7.5, 4.5);
+  group.add(barV);
+
+  group.position.set(pos[0], pos[1], pos[2]);
+  scene.add(group);
+  return group;
+}
+
+function createBuilding(pos, w, h, d, color) {
+  const mesh = new THREE.Mesh(
+    new THREE.BoxGeometry(w, h, d),
+    new THREE.MeshStandardMaterial({ color: color || 0x8a7a6a, roughness: 0.85 })
+  );
+  mesh.position.set(pos[0], pos[1] + h/2, pos[2]);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  scene.add(mesh);
+  return mesh;
+}
+
+function createMineEntrance(pos, style) {
+  const group = new THREE.Group();
+  if (style === '240ml') {
+    // Square concrete entrance
+    const frame = new THREE.Mesh(
+      new THREE.BoxGeometry(8, 6, 1),
+      new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.9 })
+    );
+    frame.position.z = -0.5;
+    group.add(frame);
+    // Tunnel arch opening (dark)
+    const dark = new THREE.Mesh(
+      new THREE.BoxGeometry(5, 4, 2),
+      new THREE.MeshStandardMaterial({ color: 0x111122 })
+    );
+    dark.position.z = 0.5;
+    group.add(dark);
+    // Two circular holes above
+    for (let side = -1; side <= 1; side += 2) {
+      const hole = new THREE.Mesh(
+        new THREE.CylinderGeometry(0.6, 0.6, 0.4, 8),
+        new THREE.MeshStandardMaterial({ color: 0x444444 })
+      );
+      hole.position.set(side * 1.8, 2.5, 0);
+      hole.rotation.x = Math.PI/2;
+      group.add(hole);
+    }
+  } else {
+    // 110ML semi-circular arch
+    const arch = new THREE.Mesh(
+      new THREE.CylinderGeometry(4, 4, 0.6, 12, 1, true, 0, Math.PI),
+      new THREE.MeshStandardMaterial({ color: 0x777777, roughness: 0.9, side: THREE.DoubleSide })
+    );
+    arch.rotation.z = Math.PI/2;
+    arch.position.y = 2;
+    group.add(arch);
+    const dark = new THREE.Mesh(
+      new THREE.BoxGeometry(5, 4, 2),
+      new THREE.MeshStandardMaterial({ color: 0x111122 })
+    );
+    dark.position.z = 0.5;
+    group.add(dark);
+    // Rails
+    for (let side = -1; side <= 1; side += 2) {
+      const rail = new THREE.Mesh(
+        new THREE.BoxGeometry(4, 0.1, 0.1),
+        new THREE.MeshStandardMaterial({ color: 0x665544 })
+      );
+      rail.position.set(side*1.0, 0.05, 0);
+      group.add(rail);
+    }
+  }
+  group.position.set(pos[0], pos[1], pos[2]);
+  scene.add(group);
+  return group;
+}
+
+function createBridge(pos) {
+  const group = new THREE.Group();
+  const mat = new THREE.MeshStandardMaterial({ color: 0x7a8a7a, roughness: 0.8 });
+  // Deck
+  const deck = new THREE.Mesh(new THREE.BoxGeometry(12, 0.4, 3), mat);
+  deck.position.y = 1.5;
+  deck.castShadow = true;
+  group.add(deck);
+  // Stone pillars
+  for (let x = -5; x <= 5; x += 5) {
+    const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.8, 3, 0.8), mat);
+    pillar.position.set(x, 0, 0);
+    group.add(pillar);
+  }
+  // Stone tablet
+  const tablet = new THREE.Mesh(
+    new THREE.BoxGeometry(1.2, 0.8, 0.15),
+    new THREE.MeshStandardMaterial({ color: 0xa09080 })
+  );
+  tablet.position.set(0, 1.0, 1.6);
+  group.add(tablet);
+  group.position.set(pos[0], pos[1], pos[2]);
+  scene.add(group);
+  return group;
+}
+
+function createMarketStalls(pos) {
+  const group = new THREE.Group();
+  const stallMat = new THREE.MeshStandardMaterial({ color: 0x7a6a5a, roughness: 0.9 });
+  for (let i = 0; i < 6; i++) {
+    const stall = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.8, 1), stallMat);
+    stall.position.set((i-2.5)*2.5, 0.9, 0);
+    stall.castShadow = true;
+    group.add(stall);
+    // Awning
+    const awning = new THREE.Mesh(
+      new THREE.BoxGeometry(1.8, 0.1, 1.3),
+      new THREE.MeshStandardMaterial({ color: 0xc9a84c })
+    );
+    awning.position.set((i-2.5)*2.5, 1.85, 0);
+    group.add(awning);
+    // Silhouette NPC
+    const npc = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.15, 0.2, 0.8, 6),
+      new THREE.MeshStandardMaterial({ color: 0x333333 })
+    );
+    npc.position.set((i-2.5)*2.5 + 0.3, 0.4, 0.5);
+    group.add(npc);
+  }
+  group.position.set(pos[0], pos[1], pos[2]);
+  scene.add(group);
+  return group;
+}
+
+// ─── Place Buildings at Station Locations ───
+const stationPositions = STATIONS.map(s => new THREE.Vector3(s.pos[0], s.pos[1], s.pos[2]));
+
+// Station 0: 240ML entrance
+createMineEntrance(STATIONS[0].pos, '240ml');
+// Station 2: 110ML entrance
+createMineEntrance(STATIONS[2].pos, '110ml');
+// Station 3: Ore processing plant - multiple buildings
+createBuilding([STATIONS[3].pos[0]-3, STATIONS[3].pos[1], STATIONS[3].pos[2]-2], 6, 3, 5, 0x6a7a6a);
+createBuilding([STATIONS[3].pos[0]+3, STATIONS[3].pos[1], STATIONS[3].pos[2]+2], 5, 2.5, 4, 0x7a8a7a);
+createBuilding([STATIONS[3].pos[0], STATIONS[3].pos[1], STATIONS[3].pos[2]+5], 4, 4, 3, 0x5a6a5a);
+// Station 4: Church
+createChurch(STATIONS[4].pos);
+// Station 5: Dawn market
+createMarketStalls(STATIONS[5].pos);
+// Station 6: Bridge
+createBridge(STATIONS[6].pos);
+// Station 7: Village houses
+for (let i = 0; i < 5; i++) {
+  createBuilding(
+    [STATIONS[7].pos[0] + (i-2)*5, STATIONS[7].pos[1], STATIONS[7].pos[2] + (i%2)*4],
+    3, 2.5, 3,
+    [0x8a7a6a,0x9a8a7a,0x7a6a5a,0x8a7a5a,0x9a8a6a][i]
+  );
+}
+// Station 8: Pier area
+createBuilding([STATIONS[8].pos[0]-4, STATIONS[8].pos[1], STATIONS[8].pos[2]], 6, 2, 4, 0x7a7a8a);
+createBuilding([STATIONS[8].pos[0]+4, STATIONS[8].pos[1], STATIONS[8].pos[2]], 5, 1.5, 3, 0x6a7a7a);
+// Ships at pier
+const shipMat = new THREE.MeshStandardMaterial({ color: 0x445566 });
+const shipHull = new THREE.Mesh(new THREE.BoxGeometry(8, 2, 2.5), shipMat);
+shipHull.position.set(STATIONS[8].pos[0], STATIONS[8].pos[1]-0.5, STATIONS[8].pos[2]+6);
+shipHull.castShadow = true;
+scene.add(shipHull);
+const shipCabin = new THREE.Mesh(
+  new THREE.BoxGeometry(2, 1.5, 1.5),
+  new THREE.MeshStandardMaterial({ color: 0x556677 })
+);
+shipCabin.position.set(STATIONS[8].pos[0]-2, STATIONS[8].pos[1]+0.75, STATIONS[8].pos[2]+6);
+scene.add(shipCabin);
+
+// ─── Track Spline ───
+// We create a smooth spline through station positions, with extra control points between stations for smoothness
+const points = [];
+// Add starting point slightly before station 0
+const startDir = new THREE.Vector3().subVectors(stationPositions[1], stationPositions[0]).normalize();
+const startPt = stationPositions[0].clone().sub(startDir.clone().multiplyScalar(8));
+points.push(startPt);
+
+for (let i = 0; i < stationPositions.length; i++) {
+  points.push(stationPositions[i]);
+  if (i < stationPositions.length - 1) {
+    // Midpoint for smooth curve
+    const mid = new THREE.Vector3().addVectors(stationPositions[i], stationPositions[i+1]).multiplyScalar(0.5);
+    // Offset midpoint slightly up for gentle curve
+    mid.y += 1 + Math.random() * 2;
+    points.push(mid);
+  }
+}
+
+const curve = new THREE.CatmullRomCurve3(points);
+
+// Visual track
+const trackPts = curve.getPoints(200);
+const trackGeo = new THREE.BufferGeometry().setFromPoints(trackPts);
+const trackMat = new THREE.LineBasicMaterial({ color: 0x554433, transparent: true, opacity: 0.15 });
+const trackLine = new THREE.Line(trackGeo, trackMat);
+scene.add(trackLine);
+
+// Rail ties (small cross bars along track)
+const railTieMat = new THREE.MeshStandardMaterial({ color: 0x4a3a2a });
+for (let i = 0; i < 80; i++) {
+  const t = i / 80;
+  const pt = curve.getPoint(t);
+  const tie = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.05, 0.3), railTieMat);
+  tie.position.copy(pt);
+  tie.position.y += 0.05;
+  scene.add(tie);
+}
+
+// ─── Station Labels (CSS2D) ───
+const stationLabels = [];
+STATIONS.forEach((s, i) => {
+  const div = document.createElement('div');
+  div.textContent = `${i+1}. ${s.name}`;
+  div.style.color = '#f0e6d3';
+  div.style.fontSize = '14px';
+  div.style.fontWeight = '600';
+  div.style.background = 'rgba(0,0,0,0.5)';
+  div.style.backdropFilter = 'blur(4px)';
+  div.style.padding = '4px 10px';
+  div.style.borderRadius = '12px';
+  div.style.border = '1px solid rgba(201,168,76,0.3)';
+  div.style.pointerEvents = 'none';
+  div.style.whiteSpace = 'nowrap';
+  const label = new CSS2DObject(div);
+  label.position.set(s.pos[0], s.pos[1] + 8, s.pos[2]);
+  scene.add(label);
+  stationLabels.push(label);
+});
+
+// ─── Station Dots UI ───
+STATIONS.forEach((_, i) => {
+  const dot = document.createElement('div');
+  dot.className = 'dot';
+  dotsContainer.appendChild(dot);
+});
+const dots = dotsContainer.querySelectorAll('.dot');
+
+// ─── Tram ───
+function createTram() {
+  const group = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color: 0xc9a84c, roughness: 0.6, metalness: 0.2 });
+  const accentMat = new THREE.MeshStandardMaterial({ color: 0x8a2a1a, roughness: 0.5 });
+  const windowMat = new THREE.MeshStandardMaterial({ color: 0x88bbdd, emissive: 0x224466, emissiveIntensity: 0.1 });
+  
+  // Main body
+  const body = new THREE.Mesh(new THREE.BoxGeometry(3.5, 1.8, 2), bodyMat);
+  body.position.y = 1.1;
+  body.castShadow = true;
+  group.add(body);
+  
+  // Roof
+  const roof = new THREE.Mesh(
+    new THREE.BoxGeometry(3.3, 0.3, 1.8),
+    new THREE.MeshStandardMaterial({ color: 0x3a2a1a })
+  );
+  roof.position.y = 2.2;
+  group.add(roof);
+  
+  // Windows
+  for (let z = -0.6; z <= 0.6; z += 1.2) {
+    const win = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.05), windowMat);
+    win.position.set(0, 1.4, z);
+    group.add(win);
+  }
+  
+  // Headlight
+  const light = new THREE.Mesh(
+    new THREE.SphereGeometry(0.15, 8, 8),
+    new THREE.MeshStandardMaterial({ color: 0xffeeaa, emissive: 0xffcc44, emissiveIntensity: 0.3 })
+  );
+  light.position.set(0, 1.0, 1.05);
+  group.add(light);
+  
+  // Accent stripe
+  const stripe = new THREE.Mesh(
+    new THREE.BoxGeometry(3.6, 0.1, 0.05),
+    accentMat
+  );
+  stripe.position.set(0, 0.7, 1.02);
+  group.add(stripe);
+  const stripe2 = stripe.clone();
+  stripe2.position.set(0, 0.7, -1.02);
+  group.add(stripe2);
+  
+  // Wheels
+  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+  for (let x = -1; x <= 1; x += 2) {
+    for (let z = -0.8; z <= 0.8; z += 1.6) {
+      const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.1, 8), wheelMat);
+      wheel.rotation.x = Math.PI/2;
+      wheel.position.set(x, 0.15, z);
+      group.add(wheel);
+    }
+  }
+  
+  return group;
+}
+
+const tram = createTram();
+scene.add(tram);
+
+// ─── State ───
+let currentStation = 0;
+let isMoving = false;
+let moveProgress = 0; // 0..1 between stations
+let targetStation = 0;
+let autoAdvance = false;
+let autoTimer = null;
+let pausedAtStation = false;
+let pauseRemaining = 0;
+let isPaused = false;
+
+// ─── Functions ───
+function goToStation(index) {
+  if (index < 0 || index >= STATIONS.length) return;
+  if (isMoving && !pausedAtStation) return;
+  
+  if (pausedAtStation && index !== currentStation) {
+    // Allow skipping while paused
+    pausedAtStation = false;
+    pauseRemaining = 0;
+    if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+  }
+  
+  targetStation = index;
+  
+  if (targetStation > currentStation) {
+    // Move forward
+    isMoving = true;
+    moveProgress = 0;
+    panel.classList.remove('show');
+    tapHint.style.display = 'none';
+    animateMove();
+  } else if (targetStation < currentStation) {
+    // Move backward
+    isMoving = true;
+    moveProgress = 0;
+    panel.classList.remove('show');
+    tapHint.style.display = 'none';
+    animateMove();
+  } else {
+    showStation(currentStation);
+  }
+}
+
+function animateMove() {
+  if (!isMoving) return;
+  
+  moveProgress += 0.012;
+  
+  if (moveProgress >= 1) {
+    moveProgress = 1;
+    currentStation = targetStation;
+    isMoving = false;
+    showStation(currentStation);
+    return;
+  }
+  
+  // Get position on curve segment
+  const t0 = currentStation / (STATIONS.length - 1);
+  const t1 = targetStation / (STATIONS.length - 1);
+  const t = t0 + (t1 - t0) * easeInOutCubic(moveProgress);
+  
+  const pt = curve.getPoint(Math.min(Math.max(t, 0), 1));
+  tram.position.copy(pt);
+  tram.position.y += 0.5;
+  
+  // Look along path
+  const tangent = curve.getTangent(Math.min(Math.max(t, 0), 1));
+  const lookTarget = pt.clone().add(tangent);
+  tram.lookAt(lookTarget);
+  
+  // Camera follows tram at offset
+  const camOffset = new THREE.Vector3(-6, 6, 8);
+  const camTarget = pt.clone().add(camOffset);
+  camera.position.lerp(camTarget, 0.08);
+  controls.target.lerp(pt, 0.08);
+  controls.update();
+  
+  updateDots();
+  requestAnimationFrame(animateMove);
+}
+
+function showStation(index) {
+  const s = STATIONS[index];
+  stationNum.textContent = `第${index+1}站 / ${STATIONS.length}`;
+  stationName.textContent = s.name;
+  stationNameEn.textContent = s.nameEn;
+  stationDesc.textContent = s.desc;
+  progressDisplay.textContent = `第${index+1}站 / ${STATIONS.length}`;
+  
+  panel.classList.add('show');
+  updateDots();
+  
+  // Position camera nicely at station
+  const pt = new THREE.Vector3(s.pos[0], s.pos[1], s.pos[2]);
+  controls.target.lerp(pt, 0.5);
+  
+  // Handle pause at station (e.g. processing plant 5min, market 8min)
+  if (s.pause > 0) {
+    pausedAtStation = true;
+    pauseRemaining = s.pause;
+    if (autoAdvance) {
+      autoTimer = setInterval(() => {
+        pauseRemaining--;
+        if (pauseRemaining <= 0) {
+          clearInterval(autoTimer);
+          autoTimer = null;
+          pausedAtStation = false;
+          if (index < STATIONS.length - 1) goToStation(index + 1);
+        }
+      }, 1000);
+    }
+  } else {
+    pausedAtStation = false;
+    // Auto advance after 12 seconds at non-pause stations
+    if (autoAdvance && index < STATIONS.length - 1) {
+      if (autoTimer) clearInterval(autoTimer);
+      autoTimer = setTimeout(() => {
+        if (index === currentStation && !isMoving) {
+          goToStation(index + 1);
+        }
+      }, 12000);
+    }
+  }
+}
+
+function updateDots() {
+  dots.forEach((dot, i) => {
+    dot.className = 'dot';
+    if (i === currentStation) dot.classList.add('active');
+    else if (i < currentStation) dot.classList.add('passed');
+    if (STATIONS[i].pause > 0) dot.classList.add('pause');
+  });
+}
+
+function easeInOutCubic(t) {
+  return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2;
+}
+
+// ─── Touch / Click Controls ───
+let touchStartY = 0;
+let touchSwiped = false;
+
+renderer.domElement.addEventListener('touchstart', (e) => {
+  touchStartY = e.touches[0].clientY;
+  touchSwiped = false;
+}, { passive: true });
+
+renderer.domElement.addEventListener('touchmove', (e) => {
+  const dy = e.touches[0].clientY - touchStartY;
+  if (Math.abs(dy) > 30) touchSwiped = true;
+}, { passive: true });
+
+renderer.domElement.addEventListener('touchend', (e) => {
+  if (touchSwiped) return;
+  handleTap();
+}, { passive: true });
+
+renderer.domElement.addEventListener('click', () => {
+  if (window.TouchEvent && 'ontouchstart' in window) return; // On mobile, only respond to our touch handler
+  handleTap();
+});
+
+function handleTap() {
+  if (isMoving) return;
+  
+  if (pausedAtStation) {
+    // Skip pause on tap
+    pausedAtStation = false;
+    pauseRemaining = 0;
+    if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+    if (currentStation < STATIONS.length - 1) goToStation(currentStation + 1);
+    return;
+  }
+  
+  if (currentStation < STATIONS.length - 1) {
+    goToStation(currentStation + 1);
+  } else {
+    // Loop back to start
+    goToStation(0);
+  }
+}
+
+// Button controls
+document.getElementById('btnNext').addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (isMoving) return;
+  if (currentStation < STATIONS.length - 1) goToStation(currentStation + 1);
+});
+
+document.getElementById('btnPrev').addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (isMoving) return;
+  if (currentStation > 0) goToStation(currentStation - 1);
+});
+
+// Auto-advance toggle (double-tap to toggle)
+let lastTapTime = 0;
+renderer.domElement.addEventListener('touchstart', (e) => {
+  const now = Date.now();
+  if (now - lastTapTime < 500) {
+    autoAdvance = !autoAdvance;
+    autoBadge.style.display = autoAdvance ? 'block' : 'none';
+    if (autoAdvance && !isMoving && !pausedAtStation) {
+      // Start auto-advance from current
+      showStation(currentStation);
+    }
+    if (!autoAdvance && autoTimer) {
+      clearInterval(autoTimer);
+      autoTimer = null;
+    }
+  }
+  lastTapTime = now;
+}, { passive: true });
+
+// ─── Resize ───
+window.addEventListener('resize', () => {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+  labelRenderer.setSize(w, h);
+});
+
+// ─── Render Loop ───
+function render() {
+  requestAnimationFrame(render);
+  controls.update();
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+}
+
+// ─── Init ───
+loading.style.display = 'none';
+showStation(0);
+updateDots();
+render();
+
+// Slowly rotate fog particles - just ambient motion
+scene.children.forEach(child => {
+  if (child.isPoints) {
+    setInterval(() => {
+      child.rotation.y += 0.002;
+    }, 100);
+  }
+});
+
+console.log('🚃 馬鞍山鐵礦電車導賞團已啟動！');
+console.log('👆 點按畫面前往下一站');
+console.log('👆👆 雙指輕按切換自動導賞模式');
+</script>
+</body>
+</html>
