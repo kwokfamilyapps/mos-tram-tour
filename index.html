@@ -125,16 +125,15 @@ canvas{display:block;width:100%!important;height:100%!important}
   <div id="sel-list"></div>
 </div>
 
-<script type="importmap">{
-  "imports":{
-    "three":"https://unpkg.com/three@0.160.0/build/three.module.js",
-    "three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"
-  }
-}</script>
+<script>
+// Three.js will load via regular script tag (more compatible on mobile)
+</script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 <script type="module">
-import*as THREE from'three';
-import{OrbitControls}from'three/addons/controls/OrbitControls.js';
-import{CSS2DRenderer,CSS2DObject}from'three/addons/renderers/CSS2DRenderer.js';
+import{OrbitControls}from'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/controls/OrbitControls.js';
+import{CSS2DRenderer,CSS2DObject}from'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/renderers/CSS2DRenderer.js';
+const THREE=window.THREE; // from global script tag
+const _TH=THREE;
 
 // ─── Station Data ───
 const S=[
