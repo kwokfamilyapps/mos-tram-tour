@@ -2,848 +2,520 @@
 <html lang="zh-HK">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-<title>馬鞍山鐵礦電車導賞團 🚃</title>
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
+<title>馬鞍山鐵礦電車導賞 🚃</title>
 <style>
-* { margin: 0; padding: 0; box-sizing: border-box; }
-html, body { width: 100%; height: 100%; overflow: hidden; touch-action: none; background: #000; font-family: "Noto Sans TC","PingFang HK","Microsoft JhengHei",sans-serif; }
-#canvas-container { width: 100vw; height: 100vh; display: block; }
-canvas { display: block; width: 100% !important; height: 100% !important; }
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;overflow:hidden;touch-action:manipulation;background:#000;font-family:"Noto Sans TC","PingFang HK","Microsoft JhengHei",sans-serif;user-select:none;-webkit-user-select:none}
+#c{width:100vw;height:100vh;display:block}
+canvas{display:block;width:100%!important;height:100%!important}
 
-/* Loading screen */
-#loading { position: fixed; inset: 0; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #1a1a2e; color: #f0e6d3; }
-#loading h1 { font-size: 28px; margin-bottom: 12px; letter-spacing: 2px; }
-#loading p { font-size: 18px; opacity: 0.7; }
-#loading .loader { width: 48px; height: 48px; border: 4px solid #f0e6d3; border-top-color: #c9a84c; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
-@keyframes spin { to { transform: rotate(360deg); } }
+/* Loading */
+#load{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#1a1a2e;color:#f0e6d3}
+#load h1{font-size:28px;margin-bottom:12px}
+#load p{font-size:18px;opacity:.7}
+#load .spinner{width:48px;height:48px;border:4px solid #f0e6d3;border-top-color:#c9a84c;border-radius:50%;animation:s 1s linear infinite;margin-bottom:20px}
+@keyframes s{to{transform:rotate(360deg)}}
 
-/* Bottom info panel */
-#info-panel {
-  position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
-  background: linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.85) 60%, transparent 100%);
-  color: #f0e6d3; padding: 60px 20px 30px;
-  transform: translateY(100%); transition: transform 0.5s cubic-bezier(0.22,1,0.36,1);
-  pointer-events: none; max-height: 50vh; overflow-y: auto;
+/* Bottom info panel - full width, full height overlay */
+#panel{
+  position:fixed;bottom:0;left:0;right:0;z-index:30;
+  background:linear-gradient(to top,rgba(0,0,0,.95) 0%,rgba(0,0,0,.85) 70%,transparent 100%);
+  color:#f0e6d3;padding:80px 24px 40px;
+  transform:translateY(100%);transition:transform .6s cubic-bezier(.22,1,.36,1);
+  pointer-events:none;max-height:65vh;overflow-y:auto
 }
-#info-panel.show { transform: translateY(0); pointer-events: auto; }
-#info-panel .station-num { font-size: 16px; color: #c9a84c; margin-bottom: 6px; letter-spacing: 1px; }
-#info-panel .station-name { font-size: 28px; font-weight: 700; margin-bottom: 4px; }
-#info-panel .station-name-en { font-size: 16px; color: #a09080; margin-bottom: 10px; }
-#info-panel .station-desc { font-size: 18px; line-height: 1.6; opacity: 0.9; }
+#panel.show{transform:translateY(0);pointer-events:auto}
+#panel .num{font-size:18px;color:#c9a84c;margin-bottom:4px;letter-spacing:2px}
+#panel .name{font-size:34px;font-weight:700;margin-bottom:2px;line-height:1.3}
+#panel .name-en{font-size:18px;color:#a09080;margin-bottom:12px}
+#panel .desc{font-size:22px;line-height:1.7;opacity:.95}
+#panel .close-btn{position:absolute;top:16px;right:20px;font-size:32px;color:rgba(240,230,211,.5);background:none;border:none;cursor:pointer;pointer-events:auto}
+#panel .close-btn:active{color:#c9a84c}
+
+/* Overlay dim when panel shows */
+#overlay{position:fixed;inset:0;z-index:29;background:rgba(0,0,0,.4);opacity:0;transition:opacity .5s;pointer-events:none}
+#overlay.show{opacity:1;pointer-events:auto}
 
 /* Top HUD */
-#hud { position: fixed; top: 0; left: 0; right: 0; z-index: 15; padding: 12px 16px; display: flex; justify-content: space-between; align-items: flex-start; pointer-events: none; }
-#hud .progress { background: rgba(0,0,0,0.6); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border-radius: 20px; padding: 6px 14px; font-size: 15px; color: #c9a84c; }
-#hud .title { font-size: 16px; color: rgba(240,230,211,0.7); text-align: right; }
+#hud{position:fixed;top:0;left:0;right:0;z-index:20;padding:12px 16px;display:flex;justify-content:space-between;align-items:flex-start;pointer-events:none}
+#hud .prog{background:rgba(0,0,0,.6);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-radius:20px;padding:6px 14px;font-size:16px;color:#c9a84c}
+#hud .tit{font-size:15px;color:rgba(240,230,211,.6);text-align:right}
+
+/* Station dots - clickable */
+#dots{position:fixed;top:56px;left:50%;transform:translateX(-50%);z-index:20;display:flex;gap:6px;align-items:center;pointer-events:auto}
+#dots .dot{width:10px;height:10px;border-radius:50%;background:rgba(240,230,211,.25);transition:all .3s;cursor:pointer;border:1px solid transparent}
+#dots .dot.active{width:28px;border-radius:6px;background:#c9a84c;border-color:#c9a84c}
+#dots .dot.passed{background:rgba(201,168,76,.5)}
+#dots .dot.pause{background:#e74c3c;width:14px;height:14px;animation:pulse-dot 1.5s ease-in-out infinite}
+@keyframes pulse-dot{0%,100%{opacity:.5}50%{opacity:1}}
+#dots .dot:active{transform:scale(1.3)}
 
 /* Tap hint */
-#tap-hint { position: fixed; bottom: 50%; left: 50%; transform: translate(-50%,50%); z-index: 10; color: rgba(240,230,211,0.5); font-size: 22px; text-align: center; animation: pulse 2s ease-in-out infinite; pointer-events: none; }
-@keyframes pulse { 0%,100% { opacity: 0.3; } 50% { opacity: 0.8; } }
+#hint{position:fixed;bottom:50%;left:50%;transform:translate(-50%,50%);z-index:10;color:rgba(240,230,211,.4);font-size:20px;text-align:center;animation:pulse2 2s ease-in-out infinite;pointer-events:none}
+@keyframes pulse2{0%,100%{opacity:.2}50%{opacity:.7}}
 
-/* Auto-advance badge */
-#auto-badge { position: fixed; top: 52px; left: 50%; transform: translateX(-50%); z-index: 15; background: rgba(0,0,0,0.6); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); border-radius: 12px; padding: 4px 14px; font-size: 13px; color: #a09080; display: none; }
+/* Auto badge */
+#auto-badge{position:fixed;top:88px;left:50%;transform:translateX(-50%);z-index:20;background:rgba(0,0,0,.6);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border-radius:12px;padding:4px 14px;font-size:14px;color:#a09080;display:none;pointer-events:none}
 
-/* Buttons */
-#controls { position: fixed; bottom: 50%; right: 12px; z-index: 15; display: flex; flex-direction: column; gap: 4px; transform: translateY(50%); pointer-events: none; }
-#controls button { pointer-events: auto; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); border: 1px solid rgba(240,230,211,0.2); color: #f0e6d3; font-size: 28px; width: 52px; height: 52px; border-radius: 26px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background 0.2s; }
-#controls button:active { background: rgba(201,168,76,0.4); }
+/* Navigation buttons */
+#nav{position:fixed;bottom:50%;right:12px;z-index:20;display:flex;flex-direction:column;gap:6px;transform:translateY(50%)}
+#nav button{pointer-events:auto;background:rgba(0,0,0,.5);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);border:1px solid rgba(240,230,211,.2);color:#f0e6d3;font-size:26px;width:54px;height:54px;border-radius:27px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s;-webkit-tap-highlight-color:transparent}
+#nav button:active{background:rgba(201,168,76,.4);transform:scale(.92)}
 
-/* Station indicator dots */
-#station-dots { position: fixed; top: 52px; left: 50%; transform: translateX(-50%); z-index: 15; display: flex; gap: 5px; align-items: center; }
-#station-dots .dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(240,230,211,0.25); transition: all 0.3s; }
-#station-dots .dot.active { width: 24px; border-radius: 4px; background: #c9a84c; }
-#station-dots .dot.passed { background: rgba(201,168,76,0.5); }
-#station-dots .dot.pause { background: #e74c3c; width: 12px; height: 12px; border-radius: 50%; }
+/* Quick station selector */
+#selector-btn{
+  position:fixed;bottom:50%;left:12px;z-index:20;
+  width:44px;height:44px;border-radius:22px;
+  background:rgba(0,0,0,.5);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+  border:1px solid rgba(240,230,211,.2);color:#f0e6d3;
+  font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  pointer-events:auto;-webkit-tap-highlight-color:transparent
+}
+#selector-btn:active{background:rgba(201,168,76,.4);transform:scale(.92)}
+
+#selector{
+  position:fixed;inset:0;z-index:50;display:none;
+  background:rgba(0,0,0,.9);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);
+  flex-direction:column;padding:60px 24px 40px;overflow-y:auto
+}
+#selector.show{display:flex}
+#selector h3{font-size:24px;color:#c9a84c;margin-bottom:20px;text-align:center}
+#selector .item{
+  padding:16px 20px;border-bottom:1px solid rgba(240,230,211,.1);
+  color:#f0e6d3;font-size:20px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;
+  -webkit-tap-highlight-color:transparent
+}
+#selector .item:active{background:rgba(201,168,76,.15)}
+#selector .item .num{color:#c9a84c;font-size:16px;margin-right:12px}
+#selector .item .stat{font-size:14px;color:rgba(240,230,211,.4)}
+#selector .close-sel{position:absolute;top:16px;right:20px;font-size:32px;color:rgba(240,230,211,.5);background:none;border:none;cursor:pointer}
 </style>
 </head>
 <body>
-<div id="loading">
-  <div class="loader"></div>
-  <h1>馬鞍山鐵礦電車導賞</h1>
-  <p>載入中...</p>
-</div>
-
-<div id="canvas-container"></div>
+<div id="load"><div class="spinner"></div><h1>馬鞍山鐵礦電車導賞</h1><p>🚃 載入中...</p></div>
+<div id="c"></div>
 
 <div id="hud">
-  <div class="progress" id="progressDisplay">第1站 / 10</div>
-  <div class="title">🚃 馬鞍山礦場導賞</div>
+  <div class="prog" id="prog">第1站 / 10</div>
+  <div class="tit">🚃 礦場導賞</div>
+</div>
+<div id="dots"></div>
+<div id="auto-badge">⏱ 自動導賞</div>
+<div id="hint">👆 點按前進 · 🚏 㩒圓點跳站</div>
+
+<div id="overlay"></div>
+<div id="panel">
+  <button class="close-btn" id="panel-close">✕</button>
+  <div class="num" id="pnum">第1站 / 10</div>
+  <div class="name" id="pname">240ML 礦洞口</div>
+  <div class="name-en" id="pname-en">240ML Mine Entrance</div>
+  <div class="desc" id="pdesc">介紹文字</div>
 </div>
 
-<div id="station-dots"></div>
-<div id="auto-badge">⏱ 自動下一站</div>
-<div id="tap-hint">👆 點按畫面</div>
+<div id="nav">
+  <button id="btn-up">▲</button>
+  <button id="btn-dn">▼</button>
+</div>
+<button id="selector-btn">☰</button>
 
-<div id="controls">
-  <button id="btnPrev" aria-label="上一站">▲</button>
-  <button id="btnNext" aria-label="下一站">▼</button>
+<div id="selector">
+  <button class="close-sel" id="sel-close">✕</button>
+  <h3>🚃 選擇車站</h3>
+  <div id="sel-list"></div>
 </div>
 
-<div id="info-panel">
-  <div class="station-num" id="stationNum">第1站 / 10</div>
-  <div class="station-name" id="stationName">240ML 礦洞口</div>
-  <div class="station-name-en" id="stationNameEn">240ML Mine Entrance</div>
-  <div class="station-desc" id="stationDesc">方形混凝土礦洞口，海拔240米，上方兩個圓形排氣扇洞口。</div>
-</div>
-
-<script type="importmap">
-{
-  "imports": {
-    "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-    "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+<script type="importmap">{
+  "imports":{
+    "three":"https://unpkg.com/three@0.160.0/build/three.module.js",
+    "three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/"
   }
-}
-</script>
-
+}</script>
 <script type="module">
-import * as THREE from 'three';
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+import*as THREE from'three';
+import{OrbitControls}from'three/addons/controls/OrbitControls.js';
+import{CSS2DRenderer,CSS2DObject}from'three/addons/renderers/CSS2DRenderer.js';
 
 // ─── Station Data ───
-const STATIONS = [
-  { name: '240ML 礦洞口', nameEn: '240ML Mine Entrance', pos: [0,0,0], pause:0,
-    desc:'方形混凝土礦洞口，海拔240米，上方兩個圓形排氣扇洞口。建於1950年代，為礦場主要入口。' },
-  { name: '礦洞隧道', nameEn: 'Mine Tunnel', pos: [40,2,-30], pause:0,
-    desc:'穿越礦洞隧道，燈光昏暗，岩壁滲水，感受礦工的日常工作環境。' },
-  { name: '110ML 主隧道', nameEn: '110ML Main Tunnel', pos: [80,4,-20], pause:0,
-    desc:'海拔110米半圓拱形入口，可見電動礦車鐵軌。礦石由此運出。' },
-  { name: '選礦廠', nameEn: 'Ore Processing Plant', pos: [110,6,10], pause:5,
-    desc:'停留5分鐘。七步選礦流程：破碎→振篩→乾磁選→球磨→濕磁選→脫磁→脫水。' },
-  { name: '恩光堂 ⛪', nameEn: 'Yan Kwong Church', pos: [90,8,60], pause:0,
-    desc:'白色外牆、青苔屋頂、鐘樓上紅十字架。建於1952年，為礦工及家屬的心靈寄託。' },
-  { name: '天光墟 🌅', nameEn: 'Tin Kwong Hui (Dawn Market)', pos: [50,10,90], pause:8,
-    desc:'清晨6至7時天光墟，教會閘口小徑兩旁擺滿菜檔、魚檔、豬肉檔。停留8分鐘。' },
-  { name: '平安橋 🌉', nameEn: 'Ping On Bridge', pos: [0,12,100], pause:0,
-    desc:'建於1962-63年，橋頭立有石碑。連接礦村與市鎮的重要通道。' },
-  { name: '礦村四區', nameEn: 'Mining Village Zone 4', pos: [-50,10,80], pause:0,
-    desc:'四號礦工宿舍區，建築為石屎牆、鐵皮頂，礦工家庭聚居地。' },
-  { name: '碼頭區', nameEn: 'Pier Area (Yiu On Estate)', pos: [-90,6,40], pause:0,
-    desc:'耀安邨碼頭。三千噸級「大埔山」「大埔石」號貨船，滿載鐵礦石運往日本。' },
-  { name: '總結 🎬', nameEn: 'Conclusion', pos: [-110,2,0], pause:0,
-    desc:'感謝參與馬鞍山鐵礦電車導賞團！礦場於1976年關閉，這段歷史永遠留在香港人的記憶中。' }
+const S=[
+  {n:'240ML 礦洞口',e:'240ML Mine Entrance',p:[0,0,0],d:0,
+   t:'方形混凝土礦洞口，海拔240米，上方兩個圓形排氣扇洞口。建於1950年代，為礦場主要入口。礦工入洞前需到警衛室翻紅牌。'},
+  {n:'礦洞隧道',e:'Mine Tunnel',p:[50,3,-40],d:0,
+   t:'穿越礦洞隧道，岩壁滲水，燈光昏暗。坑道分四層：240ML→192ML→144ML→110ML，層間以豎井及斜道相通。'},
+  {n:'110ML 主隧道',e:'110ML Main Tunnel',p:[100,5,-30],d:0,
+   t:'海拔110米半圓拱形入口，長約2,200米。鋪設電動車路軌，天線式牽引機車每次拖帶10+架礦卡。'},
+  {n:'選礦廠',e:'Ore Processing Plant',p:[130,7,15],d:5,
+   t:'停留5分鐘。1954年落成，耗資十四萬元。七步流程：破碎(5cm)→振動篩→乾磁選→球磨+棒磨→濕磁選→脫磁→真空脫水。純鐵含量由37%提升至59%。'},
+  {n:'恩光堂 ⛪',e:'Yan Kwong Church',p:[100,9,80],d:0,
+   t:'白色外牆，青苔屋頂，鐘樓上紅十字架。1952年建成，香港信義會第一所自建禮拜堂。聖所後牆有耶穌帶領羊群壁畫。'},
+  {n:'天光墟 🌅',e:'Tin Kwong Hui',p:[50,11,120],d:8,
+   t:'停留8分鐘。清晨6-7時市集，恩光堂閘口小路兩旁擺滿菜檔、魚檔、豬肉檔、燒餅佬、雲吞麵店。礦工妻子們來買餸。'},
+  {n:'平安橋 🌉',e:'Ping On Bridge',p:[0,13,130],d:0,
+   t:'建於1962-63年。橋頭立有石碑刻「平安橋」三字。取名寓意礦工平安開工、平安回家。注意：是「橋」不是「槁」。'},
+  {n:'礦村四區',e:'Mining Village Zone 4',p:[-60,11,100],d:0,
+   t:'礦工宿舍區，石屎牆鐵皮頂。礦村分四區：山頂區(北方人)、馬鞍橋區(客家人)、潮洲村(潮州人)、碼頭區(廣東人)。近萬人聚居。'},
+  {n:'碼頭區 🚢',e:'Pier Area',p:[-110,7,50],d:0,
+   t:'耀安邨碼頭舊址。3,000噸級「大寶山號」「大寶石號」貨輪滿載鐵礦石運往日本。運輸方式演變：軍車→夾斗車→運輸帶直送躉船。'},
+  {n:'總結 🎬',e:'Conclusion',p:[-130,2,0],d:0,
+   t:'感謝參與！礦場1971年達19萬噸最高產量，1976年因通脹及成本上升關閉。這段歷史永遠留在香港人的記憶中。'}
 ];
 
-// ─── DOM refs ───
-const container = document.getElementById('canvas-container');
-const panel = document.getElementById('info-panel');
-const stationNum = document.getElementById('stationNum');
-const stationName = document.getElementById('stationName');
-const stationNameEn = document.getElementById('stationNameEn');
-const stationDesc = document.getElementById('stationDesc');
-const progressDisplay = document.getElementById('progressDisplay');
-const tapHint = document.getElementById('tap-hint');
-const autoBadge = document.getElementById('auto-badge');
-const dotsContainer = document.getElementById('station-dots');
-const loading = document.getElementById('loading');
+// ─── DOM ───
+const $=id=>document.getElementById(id);
+const c=$('c'),panel=$('panel'),overlay=$('overlay');
+const pnum=$('pnum'),pname=$('pname'),pnamee=$('pname-en'),pdesc=$('pdesc'),prog=$('prog');
+const hint=$('hint'),autoB=$('auto-badge'),dotsC=$('dots');
+const load=$('load');
 
-// ─── Scene Setup ───
-const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x1a1a2e);
-scene.fog = new THREE.Fog(0x1a1a2e, 150, 350);
+// ─── Scene ───
+const sc=new THREE.Scene(); sc.background=new THREE.Color(0x2a2a3e);
+sc.fog=new THREE.FogExp2(0x2a2a3e,.003);
 
-const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 500);
-camera.position.set(0, 15, 30);
+const cam=new THREE.PerspectiveCamera(50,innerWidth/innerHeight,.1,500);
+cam.position.set(0,20,40);
 
-const renderer = new THREE.WebGLRenderer({ antialias: true });
-renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-renderer.shadowMap.enabled = true;
-renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.2;
-container.appendChild(renderer.domElement);
+const rdr=new THREE.WebGLRenderer({antialias:true});
+rdr.setSize(innerWidth,innerHeight);
+rdr.setPixelRatio(Math.min(devicePixelRatio,2));
+rdr.shadowMap.enabled=true; rdr.shadowMap.type=THREE.PCFSoftShadowMap;
+rdr.toneMapping=THREE.ACESFilmicToneMapping; rdr.toneMappingExposure=1.0;
+c.appendChild(rdr.domElement);
 
-const labelRenderer = new CSS2DRenderer();
-labelRenderer.setSize(window.innerWidth, window.innerHeight);
-labelRenderer.domElement.style.position = 'absolute';
-labelRenderer.domElement.style.top = '0';
-labelRenderer.domElement.style.left = '0';
-labelRenderer.domElement.style.pointerEvents = 'none';
-container.appendChild(labelRenderer.domElement);
+const lr=new CSS2DRenderer();
+lr.setSize(innerWidth,innerHeight);
+lr.domElement.style.cssText='position:absolute;top:0;left:0;pointer-events:none';
+c.appendChild(lr.domElement);
 
 // ─── Controls ───
-const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true;
-controls.dampingFactor = 0.08;
-controls.maxPolarAngle = Math.PI / 2.1;
-controls.minDistance = 5;
-controls.maxDistance = 80;
-controls.target.set(0, 2, 0);
-controls.update();
+const ctrl=new OrbitControls(cam,rdr.domElement);
+ctrl.enableDamping=true; ctrl.dampingFactor=.1;
+ctrl.maxPolarAngle=Math.PI/2.1; ctrl.minDistance=3; ctrl.maxDistance=100;
+ctrl.target.set(0,2,0); ctrl.update();
 
-// ─── Lighting ───
-// Dawn sky: warm golden light
-const ambient = new THREE.AmbientLight(0x445566, 0.3);
-scene.add(ambient);
+// ─── Lighting (Dawn Golden Hour) ───
+sc.add(new THREE.AmbientLight(0x445566,.25));
+sc.add(new THREE.HemisphereLight(0xffcc88,0x334466,.5));
+const sun=new THREE.DirectionalLight(0xff9944,2.0);
+sun.position.set(-40,50,30);
+sun.castShadow=true; sun.shadow.mapSize.set(2048,2048);
+sun.shadow.camera.near=.5; sun.shadow.camera.far=200;
+sun.shadow.camera.left=-100; sun.shadow.camera.right=100;
+sun.shadow.camera.top=100; sun.shadow.camera.bottom=-100;
+sc.add(sun);
+sc.add(new THREE.DirectionalLight(0x88bbff,.3).position.set(20,10,-30));
 
-const hemi = new THREE.HemisphereLight(0xffcc88, 0x334466, 0.6);
-scene.add(hemi);
-
-const sun = new THREE.DirectionalLight(0xffaa66, 1.8);
-sun.position.set(-30, 40, 20);
-sun.castShadow = true;
-sun.shadow.mapSize.width = 1024;
-sun.shadow.mapSize.height = 1024;
-sun.shadow.camera.near = 0.5;
-sun.shadow.camera.far = 150;
-sun.shadow.camera.left = -80;
-sun.shadow.camera.right = 80;
-sun.shadow.camera.top = 80;
-sun.shadow.camera.bottom = -80;
-scene.add(sun);
-
-const fill = new THREE.DirectionalLight(0x88bbff, 0.3);
-fill.position.set(20, 10, -30);
-scene.add(fill);
-
-// Volumetric-like mist particles
-function createMistParticles() {
-  const count = 600;
-  const geo = new THREE.BufferGeometry();
-  const pos = new Float32Array(count * 3);
-  for (let i = 0; i < count; i++) {
-    pos[i*3] = (Math.random()-0.5)*300;
-    pos[i*3+1] = Math.random()*20 + 1;
-    pos[i*3+2] = (Math.random()-0.5)*300;
-  }
-  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  const mat = new THREE.PointsMaterial({
-    color: 0xddccaa, size: 0.8, transparent: true, opacity: 0.15,
-    blending: THREE.AdditiveBlending, depthWrite: false
-  });
-  const pts = new THREE.Points(geo, mat);
-  scene.add(pts);
-}
-createMistParticles();
+// ─── Mist Particles ───
+(()=>{
+  const c=600,g=new THREE.BufferGeometry(),p=new Float32Array(c*3);
+  for(let i=0;i<c;i++){p[i*3]=(Math.random()-.5)*400;p[i*3+1]=Math.random()*25+1;p[i*3+2]=(Math.random()-.5)*400}
+  g.setAttribute('position',new THREE.BufferAttribute(p,3));
+  sc.add(new THREE.Points(g,new THREE.PointsMaterial({color:0xddccaa,size:1,transparent:true,opacity:.12,blending:THREE.AdditiveBlending,depthWrite:false})));
+})();
 
 // ─── Terrain ───
-function createTerrain() {
-  // Flat ground
-  const groundGeo = new THREE.PlaneGeometry(350, 350, 1, 1);
-  const groundMat = new THREE.MeshStandardMaterial({ color: 0x4a5a3a, roughness: 0.9 });
-  const ground = new THREE.Mesh(groundGeo, groundMat);
-  ground.rotation.x = -Math.PI / 2;
-  ground.position.y = -0.5;
-  ground.receiveShadow = true;
-  scene.add(ground);
+(()=>{
+  // Height-mapped terrain with vertex colors
+  const seg=80,s=300;
+  const g=new THREE.PlaneGeometry(s,s,seg,seg);
+  g.rotateX(-Math.PI/2);
+  const pos=g.attributes.position;
+  const col=new Float32Array(pos.count*3);
+  for(let i=0;i<pos.count;i++){
+    const x=pos.getX(i),z=pos.getZ(i);
+    // Height from noise-like combination
+    let h=Math.sin(x*.03)*Math.cos(z*.025)*4
+         +Math.sin(x*.05+z*.04)*2.5
+         +Math.cos(x*.08-z*.06)*1.5;
+    // Hills around stations
+    S.forEach(s=>{const dx=x-s.p[0],dz=z-s.p[2];const d=Math.sqrt(dx*dx+dz*dz);if(d<30)h+=Math.max(0,3*(1-d/30))});
+    pos.setY(i,h);
+    // Vertex color: green on flat, brown on hills
+    const gv=.3+h*.01,bv=.2-h*.005;
+    col[i*3]=.2+gv*.3;col[i*3+1]=.3+gv*.4;col[i*3+2]=.15+bv*.3;
+  }
+  pos.needsUpdate=true;g.computeVertexNormals();
+  g.setAttribute('color',new THREE.BufferAttribute(col,3));
+  const m=new THREE.Mesh(g,new THREE.MeshStandardMaterial({vertexColors:true,roughness:.9,metalness:0,flatShading:true}));
+  m.receiveShadow=true;sc.add(m);
+})();
 
-  // Mountains (simple large cones/domes)
-  const mountainPositions = [
-    [-60,-20,40], [-40,-30,60], [70,-40,50], [100,-20,80],
-    [-80,-10,-50], [60,10,-60], [-100,-20,-30], [120,0,40],
-    [-30,-40,120], [40,-30,110], [-70,-50,100], [90,-30,-40]
-  ];
-  mountainPositions.forEach(([x,_,z]) => {
-    const h = 15 + Math.random() * 35;
-    const r = 15 + Math.random() * 25;
-    const geo = new THREE.ConeGeometry(r, h, 8);
-    const mat = new THREE.MeshStandardMaterial({
-      color: new THREE.Color().setHSL(0.25 + Math.random()*0.06, 0.3, 0.25 + Math.random()*0.15),
-      roughness: 0.85, flatShading: true
-    });
-    const mesh = new THREE.Mesh(geo, mat);
-    mesh.position.set(x, h/2 - 0.5, z);
-    mesh.castShadow = true;
-    mesh.receiveShadow = true;
-    mesh.rotation.y = Math.random() * Math.PI;
-    scene.add(mesh);
-  });
-}
-createTerrain();
+// ─── Trees ───
+(()=>{
+  for(let i=0;i<120;i++){
+    const x=(Math.random()-.5)*280,z=(Math.random()-.5)*280;
+    // Avoid station areas
+    let ok=true;S.forEach(s=>{const d=Math.hypot(x-s.p[0],z-s.p[2]);if(d<20)ok=false});
+    if(!ok)continue;
+    const h=2+Math.random()*4;
+    const trunk=new THREE.Mesh(new THREE.CylinderGeometry(.15,.2,h*.3,4),new THREE.MeshStandardMaterial({color:0x5a4a3a,roughness:.9}));
+    trunk.position.set(x,h*.15,z);trunk.castShadow=true;sc.add(trunk);
+    const crown=new THREE.Mesh(new THREE.SphereGeometry(h*.35,5,5),new THREE.MeshStandardMaterial({color:new THREE.Color().setHSL(.28+Math.random()*.05,.35,.25+Math.random()*.12),roughness:.85}));
+    crown.position.set(x,h*.5+Math.random()*.5,z);crown.castShadow=true;sc.add(crown);
+  }
+})();
 
 // ─── Buildings ───
-function createChurch(pos) {
-  const group = new THREE.Group();
-  // Main body
-  const body = new THREE.Mesh(
-    new THREE.BoxGeometry(8, 5, 10),
-    new THREE.MeshStandardMaterial({ color: 0xf5f0e6, roughness: 0.8 })
-  );
-  body.position.y = 2.5;
-  body.castShadow = true;
-  group.add(body);
-
+function church(pos){
+  const g=new THREE.Group();
+  const wm=new THREE.MeshStandardMaterial({color:0xf0e8d8,roughness:.8});
+  const rm=new THREE.MeshStandardMaterial({color:0x4a5a3a,roughness:.9});
+  // Body
+  const bd=new THREE.Mesh(new THREE.BoxGeometry(8,5,10),wm);bd.position.y=2.5;bd.castShadow=true;g.add(bd);
   // Roof
-  const roof = new THREE.Mesh(
-    new THREE.ConeGeometry(6, 2.5, 4),
-    new THREE.MeshStandardMaterial({ color: 0x4a5a3a, roughness: 0.9 })
-  );
-  roof.position.y = 5.5;
-  roof.rotation.y = Math.PI/4;
-  roof.castShadow = true;
-  group.add(roof);
-
-  // Bell tower
-  const tower = new THREE.Mesh(
-    new THREE.BoxGeometry(3, 8, 3),
-    new THREE.MeshStandardMaterial({ color: 0xf0e8d5, roughness: 0.7 })
-  );
-  tower.position.set(-3, 4, 3);
-  tower.castShadow = true;
-  group.add(tower);
-
-  // Red cross
-  const crossMat = new THREE.MeshStandardMaterial({ color: 0xcc2222, emissive: 0x661111, emissiveIntensity: 0.3 });
-  const barH = new THREE.Mesh(new THREE.BoxGeometry(2.2, 0.35, 0.3), crossMat);
-  barH.position.set(-3, 7.5, 4.5);
-  group.add(barH);
-  const barV = new THREE.Mesh(new THREE.BoxGeometry(0.35, 2.2, 0.3), crossMat);
-  barV.position.set(-3, 7.5, 4.5);
-  group.add(barV);
-
-  group.position.set(pos[0], pos[1], pos[2]);
-  scene.add(group);
-  return group;
+  const rf=new THREE.Mesh(new THREE.ConeGeometry(6,2.5,4),rm);rf.position.y=5.5;rf.rotation.y=Math.PI/4;rf.castShadow=true;g.add(rf);
+  // Tower
+  const tw=new THREE.Mesh(new THREE.BoxGeometry(3,8,3),wm);tw.position.set(-3,4,3);tw.castShadow=true;g.add(tw);
+  // Tower roof
+  const tr=new THREE.Mesh(new THREE.ConeGeometry(2,1.5,4),rm);tr.position.set(-3,8.5,3);g.add(tr);
+  // Red Cross (glowing)
+  const cm=new THREE.MeshStandardMaterial({color:0xcc2222,emissive:0x881111,emissiveIntensity:.5});
+  const bh=new THREE.Mesh(new THREE.BoxGeometry(2.2,.35,.3),cm);bh.position.set(-3,7.5,4.5);g.add(bh);
+  const bv=new THREE.Mesh(new THREE.BoxGeometry(.35,2.2,.3),cm);bv.position.set(-3,7.5,4.5);g.add(bv);
+  // Windows (stained glass glow)
+  const wgl=new THREE.MeshStandardMaterial({color:0x4488bb,emissive:0x224466,emissiveIntensity:.15});
+  for(let z=-3;z<=3;z+=3){const w=new THREE.Mesh(new THREE.BoxGeometry(2,2,.1),wgl);w.position.set(0,2.5,z);g.add(w)}
+  // Moss patches
+  const mos=new THREE.MeshStandardMaterial({color:0x3a5a3a,roughness:.95});
+  for(let i=0;i<5;i++){const m=new THREE.Mesh(new THREE.SphereGeometry(.4+Math.random()*.5,4,4),mos);m.position.set((Math.random()-.5)*6,5.8,(Math.random()-.5)*8);g.add(m)}
+  g.position.set(pos[0],pos[1],pos[2]);sc.add(g);
 }
 
-function createBuilding(pos, w, h, d, color) {
-  const mesh = new THREE.Mesh(
-    new THREE.BoxGeometry(w, h, d),
-    new THREE.MeshStandardMaterial({ color: color || 0x8a7a6a, roughness: 0.85 })
-  );
-  mesh.position.set(pos[0], pos[1] + h/2, pos[2]);
-  mesh.castShadow = true;
-  mesh.receiveShadow = true;
-  scene.add(mesh);
-  return mesh;
+function building(pos,w,h,d,c){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),new THREE.MeshStandardMaterial({color:c||0x8a7a6a,roughness:.85}));
+  m.position.set(pos[0],pos[1]+h/2,pos[2]);m.castShadow=true;m.receiveShadow=true;sc.add(m);
 }
 
-function createMineEntrance(pos, style) {
-  const group = new THREE.Group();
-  if (style === '240ml') {
-    // Square concrete entrance
-    const frame = new THREE.Mesh(
-      new THREE.BoxGeometry(8, 6, 1),
-      new THREE.MeshStandardMaterial({ color: 0x888888, roughness: 0.9 })
-    );
-    frame.position.z = -0.5;
-    group.add(frame);
-    // Tunnel arch opening (dark)
-    const dark = new THREE.Mesh(
-      new THREE.BoxGeometry(5, 4, 2),
-      new THREE.MeshStandardMaterial({ color: 0x111122 })
-    );
-    dark.position.z = 0.5;
-    group.add(dark);
-    // Two circular holes above
-    for (let side = -1; side <= 1; side += 2) {
-      const hole = new THREE.Mesh(
-        new THREE.CylinderGeometry(0.6, 0.6, 0.4, 8),
-        new THREE.MeshStandardMaterial({ color: 0x444444 })
-      );
-      hole.position.set(side * 1.8, 2.5, 0);
-      hole.rotation.x = Math.PI/2;
-      group.add(hole);
-    }
-  } else {
-    // 110ML semi-circular arch
-    const arch = new THREE.Mesh(
-      new THREE.CylinderGeometry(4, 4, 0.6, 12, 1, true, 0, Math.PI),
-      new THREE.MeshStandardMaterial({ color: 0x777777, roughness: 0.9, side: THREE.DoubleSide })
-    );
-    arch.rotation.z = Math.PI/2;
-    arch.position.y = 2;
-    group.add(arch);
-    const dark = new THREE.Mesh(
-      new THREE.BoxGeometry(5, 4, 2),
-      new THREE.MeshStandardMaterial({ color: 0x111122 })
-    );
-    dark.position.z = 0.5;
-    group.add(dark);
-    // Rails
-    for (let side = -1; side <= 1; side += 2) {
-      const rail = new THREE.Mesh(
-        new THREE.BoxGeometry(4, 0.1, 0.1),
-        new THREE.MeshStandardMaterial({ color: 0x665544 })
-      );
-      rail.position.set(side*1.0, 0.05, 0);
-      group.add(rail);
-    }
-  }
-  group.position.set(pos[0], pos[1], pos[2]);
-  scene.add(group);
-  return group;
+function mine240(pos){
+  const g=new THREE.Group();
+  const gr=new THREE.MeshStandardMaterial({color:0x888888,roughness:.9});
+  const fr=new THREE.Mesh(new THREE.BoxGeometry(8,6,1),gr);fr.position.z=-.5;g.add(fr);
+  const dk=new THREE.Mesh(new THREE.BoxGeometry(5,4,2),new THREE.MeshStandardMaterial({color:0x111122}));dk.position.z=.5;g.add(dk);
+  const bl=new THREE.MeshStandardMaterial({color:0x333333});
+  for(let s=-1;s<=1;s+=2){const h=new THREE.Mesh(new THREE.CylinderGeometry(.6,.6,.4,8),bl);h.position.set(s*1.8,2.5,0);h.rotation.x=Math.PI/2;g.add(h)}
+  // "240ML" text on a white panel (just a white box)
+  const tp=new THREE.Mesh(new THREE.BoxGeometry(3,.6,.05),new THREE.MeshStandardMaterial({color:0xffffff}));tp.position.set(0,.5,-.55);g.add(tp);
+  // Lamp
+  const lp=new THREE.Mesh(new THREE.SphereGeometry(.3,8,8),new THREE.MeshStandardMaterial({color:0xffaa44,emissive:0xff8800,emissiveIntensity:.3}));lp.position.set(0,3,-.55);g.add(lp);
+  g.position.set(pos[0],pos[1],pos[2]);sc.add(g);
 }
 
-function createBridge(pos) {
-  const group = new THREE.Group();
-  const mat = new THREE.MeshStandardMaterial({ color: 0x7a8a7a, roughness: 0.8 });
-  // Deck
-  const deck = new THREE.Mesh(new THREE.BoxGeometry(12, 0.4, 3), mat);
-  deck.position.y = 1.5;
-  deck.castShadow = true;
-  group.add(deck);
-  // Stone pillars
-  for (let x = -5; x <= 5; x += 5) {
-    const pillar = new THREE.Mesh(new THREE.BoxGeometry(0.8, 3, 0.8), mat);
-    pillar.position.set(x, 0, 0);
-    group.add(pillar);
-  }
+function mine110(pos){
+  const g=new THREE.Group();
+  const arc=new THREE.Mesh(new THREE.CylinderGeometry(4,4,.6,12,1,true,0,Math.PI),new THREE.MeshStandardMaterial({color:0x777777,roughness:.9,side:THREE.DoubleSide}));
+  arc.rotation.z=Math.PI/2;arc.position.y=2;g.add(arc);
+  const dk=new THREE.Mesh(new THREE.BoxGeometry(5,4,2),new THREE.MeshStandardMaterial({color:0x111122}));dk.position.z=.5;g.add(dk);
+  for(let s=-1;s<=1;s+=2){const r=new THREE.Mesh(new THREE.BoxGeometry(4,.1,.1),new THREE.MeshStandardMaterial({color:0x665544}));r.position.set(s*1,.05,0);g.add(r)}
+  // Track lights (glowing dots on ceiling)
+  const lm=new THREE.MeshStandardMaterial({color:0x444444,emissive:0x444422,emissiveIntensity:.1});
+  for(let x=-2;x<=2;x+=2){const l=new THREE.Mesh(new THREE.SphereGeometry(.15,6,6),lm);l.position.set(x,1.5,.5);g.add(l)}
+  g.position.set(pos[0],pos[1],pos[2]);sc.add(g);
+}
+
+function bridge(pos){
+  const g=new THREE.Group();
+  const sm=new THREE.MeshStandardMaterial({color:0x7a8a7a,roughness:.8});
+  const dk=new THREE.Mesh(new THREE.BoxGeometry(14,.5,3.5),sm);dk.position.y=1.8;dk.castShadow=true;g.add(dk);
+  for(let x=-6;x<=6;x+=3){const p=new THREE.Mesh(new THREE.BoxGeometry(.6,3.6,.6),sm);p.position.set(x,0,0);g.add(p)}
   // Stone tablet
-  const tablet = new THREE.Mesh(
-    new THREE.BoxGeometry(1.2, 0.8, 0.15),
-    new THREE.MeshStandardMaterial({ color: 0xa09080 })
-  );
-  tablet.position.set(0, 1.0, 1.6);
-  group.add(tablet);
-  group.position.set(pos[0], pos[1], pos[2]);
-  scene.add(group);
-  return group;
+  const tb=new THREE.Mesh(new THREE.BoxGeometry(1.4,.9,.15),new THREE.MeshStandardMaterial({color:0xa09080}));tb.position.set(0,1.2,1.8);g.add(tb);
+  // Railings
+  for(let z=-1;z<=1;z+=2){for(let x=-6;x<=6;x+=2){const r=new THREE.Mesh(new THREE.CylinderGeometry(.05,.05,.8,4),sm);r.position.set(x,1.8,z*1.7);g.add(r)}}
+  g.position.set(pos[0],pos[1],pos[2]);sc.add(g);
 }
 
-function createMarketStalls(pos) {
-  const group = new THREE.Group();
-  const stallMat = new THREE.MeshStandardMaterial({ color: 0x7a6a5a, roughness: 0.9 });
-  for (let i = 0; i < 6; i++) {
-    const stall = new THREE.Mesh(new THREE.BoxGeometry(1.5, 1.8, 1), stallMat);
-    stall.position.set((i-2.5)*2.5, 0.9, 0);
-    stall.castShadow = true;
-    group.add(stall);
-    // Awning
-    const awning = new THREE.Mesh(
-      new THREE.BoxGeometry(1.8, 0.1, 1.3),
-      new THREE.MeshStandardMaterial({ color: 0xc9a84c })
-    );
-    awning.position.set((i-2.5)*2.5, 1.85, 0);
-    group.add(awning);
-    // Silhouette NPC
-    const npc = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.15, 0.2, 0.8, 6),
-      new THREE.MeshStandardMaterial({ color: 0x333333 })
-    );
-    npc.position.set((i-2.5)*2.5 + 0.3, 0.4, 0.5);
-    group.add(npc);
+function market(pos){
+  const g=new THREE.Group();
+  const colors=[0x8a7a5a,0x7a6a4a,0x9a8a6a,0x6a7a5a,0x8a7a4a,0x7a8a5a];
+  for(let i=0;i<7;i++){
+    const cm=new THREE.MeshStandardMaterial({color:colors[i%colors.length],roughness:.9});
+    const st=new THREE.Mesh(new THREE.BoxGeometry(1.8,1.8,1),cm);st.position.set((i-3)*2.8,.9,0);st.castShadow=true;g.add(st);
+    const aw=new THREE.Mesh(new THREE.BoxGeometry(2.2,.1,1.3),new THREE.MeshStandardMaterial({color:0xc9a84c}));aw.position.set((i-3)*2.8,1.85,0);g.add(aw);
+    // NPC silhouette
+    const npc=new THREE.Mesh(new THREE.CylinderGeometry(.12,.18,.7,6),new THREE.MeshStandardMaterial({color:0x222222}));
+    npc.position.set((i-3)*2.8+.3,.35,.5);g.add(npc);
+    // Goods on stall
+    const gd=new THREE.Mesh(new THREE.SphereGeometry(.2,4,4),new THREE.MeshStandardMaterial({color:[0x44aa44,0xcc6644,0xaaaa44,0x88aa44][i%4]}));
+    gd.position.set((i-3)*2.8,.9,.3);g.add(gd);
   }
-  group.position.set(pos[0], pos[1], pos[2]);
-  scene.add(group);
-  return group;
+  // Red lanterns
+  const lm=new THREE.MeshStandardMaterial({color:0xcc3333,emissive:0x661111,emissiveIntensity:.2});
+  for(let i=0;i<4;i++){const l=new THREE.Mesh(new THREE.SphereGeometry(.25,6,6),lm);l.position.set((i-1.5)*5,2.2,0);g.add(l)}
+  g.position.set(pos[0],pos[1],pos[2]);sc.add(g);
 }
 
-// ─── Place Buildings at Station Locations ───
-const stationPositions = STATIONS.map(s => new THREE.Vector3(s.pos[0], s.pos[1], s.pos[2]));
-
-// Station 0: 240ML entrance
-createMineEntrance(STATIONS[0].pos, '240ml');
-// Station 2: 110ML entrance
-createMineEntrance(STATIONS[2].pos, '110ml');
-// Station 3: Ore processing plant - multiple buildings
-createBuilding([STATIONS[3].pos[0]-3, STATIONS[3].pos[1], STATIONS[3].pos[2]-2], 6, 3, 5, 0x6a7a6a);
-createBuilding([STATIONS[3].pos[0]+3, STATIONS[3].pos[1], STATIONS[3].pos[2]+2], 5, 2.5, 4, 0x7a8a7a);
-createBuilding([STATIONS[3].pos[0], STATIONS[3].pos[1], STATIONS[3].pos[2]+5], 4, 4, 3, 0x5a6a5a);
-// Station 4: Church
-createChurch(STATIONS[4].pos);
-// Station 5: Dawn market
-createMarketStalls(STATIONS[5].pos);
-// Station 6: Bridge
-createBridge(STATIONS[6].pos);
-// Station 7: Village houses
-for (let i = 0; i < 5; i++) {
-  createBuilding(
-    [STATIONS[7].pos[0] + (i-2)*5, STATIONS[7].pos[1], STATIONS[7].pos[2] + (i%2)*4],
-    3, 2.5, 3,
-    [0x8a7a6a,0x9a8a7a,0x7a6a5a,0x8a7a5a,0x9a8a6a][i]
-  );
+function ship(pos){
+  const g=new THREE.Group();
+  const hm=new THREE.MeshStandardMaterial({color:0x445566,roughness:.7});
+  const hull=new THREE.Mesh(new THREE.BoxGeometry(10,2.5,3),hm);hull.position.set(0,1.25,0);hull.castShadow=true;g.add(hull);
+  const cab=new THREE.Mesh(new THREE.BoxGeometry(2.5,1.8,2),new THREE.MeshStandardMaterial({color:0x556677}));cab.position.set(-3,3.2,0);g.add(cab);
+  const ch=new THREE.Mesh(new THREE.CylinderGeometry(.08,.08,2,4),new THREE.MeshStandardMaterial({color:0x443322}));ch.position.set(3,2.5,0);g.add(ch);
+  g.position.set(pos[0],pos[1],pos[2]);sc.add(g);
 }
-// Station 8: Pier area
-createBuilding([STATIONS[8].pos[0]-4, STATIONS[8].pos[1], STATIONS[8].pos[2]], 6, 2, 4, 0x7a7a8a);
-createBuilding([STATIONS[8].pos[0]+4, STATIONS[8].pos[1], STATIONS[8].pos[2]], 5, 1.5, 3, 0x6a7a7a);
-// Ships at pier
-const shipMat = new THREE.MeshStandardMaterial({ color: 0x445566 });
-const shipHull = new THREE.Mesh(new THREE.BoxGeometry(8, 2, 2.5), shipMat);
-shipHull.position.set(STATIONS[8].pos[0], STATIONS[8].pos[1]-0.5, STATIONS[8].pos[2]+6);
-shipHull.castShadow = true;
-scene.add(shipHull);
-const shipCabin = new THREE.Mesh(
-  new THREE.BoxGeometry(2, 1.5, 1.5),
-  new THREE.MeshStandardMaterial({ color: 0x556677 })
-);
-shipCabin.position.set(STATIONS[8].pos[0]-2, STATIONS[8].pos[1]+0.75, STATIONS[8].pos[2]+6);
-scene.add(shipCabin);
+
+// ─── Place Buildings ───
+mine240(S[0].p);
+mine110(S[2].p);
+building([S[3].p[0]-5,S[3].p[1],S[3].p[2]-3],6,3,5,0x6a7a6a);
+building([S[3].p[0]+5,S[3].p[1],S[3].p[2]+3],5,2.5,4,0x7a8a7a);
+building([S[3].p[0],S[3].p[1],S[3].p[2]+6],4,4,3,0x5a6a5a);
+church(S[4].p);
+market(S[5].p);
+bridge(S[6].p);
+for(let i=0;i<6;i++)building([S[7].p[0]+(i-2.5)*5,S[7].p[1],S[7].p[2]+(i%2)*5],3,2.5+Math.random()*.5,3,[0x8a7a6a,0x9a8a7a,0x7a6a5a,0x8a7a5a,0x9a8a6a,0x7a7a5a][i]);
+ship([S[8].p[0],S[8].p[1]-.5,S[8].p[2]+8]);
 
 // ─── Track Spline ───
-// We create a smooth spline through station positions, with extra control points between stations for smoothness
-const points = [];
-// Add starting point slightly before station 0
-const startDir = new THREE.Vector3().subVectors(stationPositions[1], stationPositions[0]).normalize();
-const startPt = stationPositions[0].clone().sub(startDir.clone().multiplyScalar(8));
-points.push(startPt);
+const pts=[];
+const sd=new THREE.Vector3().subVectors(S[1].p,S[0].p).normalize();
+pts.push(new THREE.Vector3(S[0].p[0],S[0].p[1],S[0].p[2]).sub(sd.clone().multiplyScalar(8)));
+S.forEach((s,i)=>{const p=new THREE.Vector3(s.p[0],s.p[1],s.p[2]);pts.push(p);if(i<S.length-1){const m=new THREE.Vector3().addVectors(p,new THREE.Vector3(S[i+1].p[0],S[i+1].p[1],S[i+1].p[2])).multiplyScalar(.5);m.y+=1+Math.random()*2;pts.push(m)}});
+const curve=new THREE.CatmullRomCurve3(pts);
 
-for (let i = 0; i < stationPositions.length; i++) {
-  points.push(stationPositions[i]);
-  if (i < stationPositions.length - 1) {
-    // Midpoint for smooth curve
-    const mid = new THREE.Vector3().addVectors(stationPositions[i], stationPositions[i+1]).multiplyScalar(0.5);
-    // Offset midpoint slightly up for gentle curve
-    mid.y += 1 + Math.random() * 2;
-    points.push(mid);
-  }
-}
+// Visual track (rails)
+const tp=curve.getPoints(200);
+const tg=new THREE.BufferGeometry().setFromPoints(tp);
+const tl=new THREE.Line(tg,new THREE.LineBasicMaterial({color:0x554433,transparent:true,opacity:.2}));sc.add(tl);
+// Rail ties
+const tm=new THREE.MeshStandardMaterial({color:0x4a3a2a});
+for(let i=0;i<100;i++){const t=i/100,pt=curve.getPoint(t);const tie=new THREE.Mesh(new THREE.BoxGeometry(1.5,.05,.3),tm);tie.position.copy(pt);tie.position.y+=.05;sc.add(tie)}
 
-const curve = new THREE.CatmullRomCurve3(points);
-
-// Visual track
-const trackPts = curve.getPoints(200);
-const trackGeo = new THREE.BufferGeometry().setFromPoints(trackPts);
-const trackMat = new THREE.LineBasicMaterial({ color: 0x554433, transparent: true, opacity: 0.15 });
-const trackLine = new THREE.Line(trackGeo, trackMat);
-scene.add(trackLine);
-
-// Rail ties (small cross bars along track)
-const railTieMat = new THREE.MeshStandardMaterial({ color: 0x4a3a2a });
-for (let i = 0; i < 80; i++) {
-  const t = i / 80;
-  const pt = curve.getPoint(t);
-  const tie = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.05, 0.3), railTieMat);
-  tie.position.copy(pt);
-  tie.position.y += 0.05;
-  scene.add(tie);
-}
-
-// ─── Station Labels (CSS2D) ───
-const stationLabels = [];
-STATIONS.forEach((s, i) => {
-  const div = document.createElement('div');
-  div.textContent = `${i+1}. ${s.name}`;
-  div.style.color = '#f0e6d3';
-  div.style.fontSize = '14px';
-  div.style.fontWeight = '600';
-  div.style.background = 'rgba(0,0,0,0.5)';
-  div.style.backdropFilter = 'blur(4px)';
-  div.style.padding = '4px 10px';
-  div.style.borderRadius = '12px';
-  div.style.border = '1px solid rgba(201,168,76,0.3)';
-  div.style.pointerEvents = 'none';
-  div.style.whiteSpace = 'nowrap';
-  const label = new CSS2DObject(div);
-  label.position.set(s.pos[0], s.pos[1] + 8, s.pos[2]);
-  scene.add(label);
-  stationLabels.push(label);
+// ─── Station Labels ───
+S.forEach((s,i)=>{
+  const d=document.createElement('div');
+  d.textContent=`${i+1}. ${s.n}`;
+  d.style.cssText='color:#f0e6d3;font-size:16px;font-weight:600;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);padding:4px 12px;border-radius:12px;border:1px solid rgba(201,168,76,.3);pointer-events:none;white-space:nowrap';
+  const l=new CSS2DObject(d);l.position.set(s.p[0],s.p[1]+10,s.p[2]);sc.add(l);
 });
 
 // ─── Station Dots UI ───
-STATIONS.forEach((_, i) => {
-  const dot = document.createElement('div');
-  dot.className = 'dot';
-  dotsContainer.appendChild(dot);
-});
-const dots = dotsContainer.querySelectorAll('.dot');
+S.forEach((_,i)=>{const d=document.createElement('div');d.className='dot';d.dataset.idx=i;d.addEventListener('click',()=>goTo(parseInt(d.dataset.idx)));dotsC.appendChild(d)});
+const dots=dotsC.querySelectorAll('.dot');
 
 // ─── Tram ───
-function createTram() {
-  const group = new THREE.Group();
-  const bodyMat = new THREE.MeshStandardMaterial({ color: 0xc9a84c, roughness: 0.6, metalness: 0.2 });
-  const accentMat = new THREE.MeshStandardMaterial({ color: 0x8a2a1a, roughness: 0.5 });
-  const windowMat = new THREE.MeshStandardMaterial({ color: 0x88bbdd, emissive: 0x224466, emissiveIntensity: 0.1 });
-  
-  // Main body
-  const body = new THREE.Mesh(new THREE.BoxGeometry(3.5, 1.8, 2), bodyMat);
-  body.position.y = 1.1;
-  body.castShadow = true;
-  group.add(body);
-  
-  // Roof
-  const roof = new THREE.Mesh(
-    new THREE.BoxGeometry(3.3, 0.3, 1.8),
-    new THREE.MeshStandardMaterial({ color: 0x3a2a1a })
-  );
-  roof.position.y = 2.2;
-  group.add(roof);
-  
-  // Windows
-  for (let z = -0.6; z <= 0.6; z += 1.2) {
-    const win = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.8, 0.05), windowMat);
-    win.position.set(0, 1.4, z);
-    group.add(win);
-  }
-  
-  // Headlight
-  const light = new THREE.Mesh(
-    new THREE.SphereGeometry(0.15, 8, 8),
-    new THREE.MeshStandardMaterial({ color: 0xffeeaa, emissive: 0xffcc44, emissiveIntensity: 0.3 })
-  );
-  light.position.set(0, 1.0, 1.05);
-  group.add(light);
-  
-  // Accent stripe
-  const stripe = new THREE.Mesh(
-    new THREE.BoxGeometry(3.6, 0.1, 0.05),
-    accentMat
-  );
-  stripe.position.set(0, 0.7, 1.02);
-  group.add(stripe);
-  const stripe2 = stripe.clone();
-  stripe2.position.set(0, 0.7, -1.02);
-  group.add(stripe2);
-  
-  // Wheels
-  const wheelMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-  for (let x = -1; x <= 1; x += 2) {
-    for (let z = -0.8; z <= 0.8; z += 1.6) {
-      const wheel = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.1, 8), wheelMat);
-      wheel.rotation.x = Math.PI/2;
-      wheel.position.set(x, 0.15, z);
-      group.add(wheel);
-    }
-  }
-  
-  return group;
+function makeTram(){
+  const g=new THREE.Group();
+  const bm=new THREE.MeshStandardMaterial({color:0xc9a84c,roughness:.5,metalness:.2});
+  const am=new THREE.MeshStandardMaterial({color:0x8a2a1a,roughness:.5});
+  const wm=new THREE.MeshStandardMaterial({color:0x88bbdd,emissive:0x224466,emissiveIntensity:.1});
+  const bd=new THREE.Mesh(new THREE.BoxGeometry(3.5,1.8,2),bm);bd.position.y=1.1;bd.castShadow=true;g.add(bd);
+  const rf=new THREE.Mesh(new THREE.BoxGeometry(3.3,.3,1.8),new THREE.MeshStandardMaterial({color:0x3a2a1a}));rf.position.y=2.2;g.add(rf);
+  // Overhead wire collector
+  const wc=new THREE.Mesh(new THREE.CylinderGeometry(.04,.04,2,4),new THREE.MeshStandardMaterial({color:0x333333}));wc.position.set(0,2.5,0);wc.rotation.x=.2;g.add(wc);
+  for(let z=-.6;z<=.6;z+=1.2){const w=new THREE.Mesh(new THREE.BoxGeometry(.8,.8,.05),wm);w.position.set(0,1.4,z);g.add(w)}
+  const lg=new THREE.Mesh(new THREE.SphereGeometry(.2,8,8),new THREE.MeshStandardMaterial({color:0xffeeaa,emissive:0xffcc44,emissiveIntensity:.4}));lg.position.set(0,1,1.05);g.add(lg);
+  [-1,1].forEach(s=>{[-.8,.8].forEach(z=>{const w=new THREE.Mesh(new THREE.CylinderGeometry(.2,.2,.1,8),new THREE.MeshStandardMaterial({color:0x222222}));w.rotation.x=Math.PI/2;w.position.set(s,.15,z);g.add(w)})});
+  return g;
 }
-
-const tram = createTram();
-scene.add(tram);
+const tram=makeTram();sc.add(tram);
 
 // ─── State ───
-let currentStation = 0;
-let isMoving = false;
-let moveProgress = 0; // 0..1 between stations
-let targetStation = 0;
-let autoAdvance = false;
-let autoTimer = null;
-let pausedAtStation = false;
-let pauseRemaining = 0;
-let isPaused = false;
+let cur=0,tgt=0,moving=false,progMove=0,autoAdv=false,autoTim=null,paused=false,pauseRem=0,panelOpen=false;
 
 // ─── Functions ───
-function goToStation(index) {
-  if (index < 0 || index >= STATIONS.length) return;
-  if (isMoving && !pausedAtStation) return;
-  
-  if (pausedAtStation && index !== currentStation) {
-    // Allow skipping while paused
-    pausedAtStation = false;
-    pauseRemaining = 0;
-    if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
-  }
-  
-  targetStation = index;
-  
-  if (targetStation > currentStation) {
-    // Move forward
-    isMoving = true;
-    moveProgress = 0;
-    panel.classList.remove('show');
-    tapHint.style.display = 'none';
-    animateMove();
-  } else if (targetStation < currentStation) {
-    // Move backward
-    isMoving = true;
-    moveProgress = 0;
-    panel.classList.remove('show');
-    tapHint.style.display = 'none';
-    animateMove();
-  } else {
-    showStation(currentStation);
-  }
+function goTo(idx){
+  if(idx<0||idx>=S.length)return;
+  if(moving&&!paused)return;
+  if(paused&&idx!==cur){paused=false;pauseRem=0;if(autoTim){clearInterval(autoTim);autoTim=null}}
+  tgt=idx;
+  if(tgt!==cur){moving=true;progMove=0;panel.classList.remove('show');overlay.classList.remove('show');panelOpen=false;hint.style.display='none';anim();}
+  else showStn(cur);
 }
 
-function animateMove() {
-  if (!isMoving) return;
-  
-  moveProgress += 0.012;
-  
-  if (moveProgress >= 1) {
-    moveProgress = 1;
-    currentStation = targetStation;
-    isMoving = false;
-    showStation(currentStation);
-    return;
-  }
-  
-  // Get position on curve segment
-  const t0 = currentStation / (STATIONS.length - 1);
-  const t1 = targetStation / (STATIONS.length - 1);
-  const t = t0 + (t1 - t0) * easeInOutCubic(moveProgress);
-  
-  const pt = curve.getPoint(Math.min(Math.max(t, 0), 1));
-  tram.position.copy(pt);
-  tram.position.y += 0.5;
-  
-  // Look along path
-  const tangent = curve.getTangent(Math.min(Math.max(t, 0), 1));
-  const lookTarget = pt.clone().add(tangent);
-  tram.lookAt(lookTarget);
-  
-  // Camera follows tram at offset
-  const camOffset = new THREE.Vector3(-6, 6, 8);
-  const camTarget = pt.clone().add(camOffset);
-  camera.position.lerp(camTarget, 0.08);
-  controls.target.lerp(pt, 0.08);
-  controls.update();
-  
-  updateDots();
-  requestAnimationFrame(animateMove);
+function anim(){
+  if(!moving)return;
+  // Speed: slow crawl (was 0.012, now 0.004 = 3x slower)
+  progMove+=.004;
+  if(progMove>=1){progMove=1;cur=tgt;moving=false;showStn(cur);return}
+  const t0=cur/(S.length-1),t1=tgt/(S.length-1);
+  const t=t0+(t1-t0)*ease(progMove);
+  const pt=curve.getPoint(Math.min(Math.max(t,0),1));
+  tram.position.copy(pt);tram.position.y+=.6;
+  const tan=curve.getTangent(Math.min(Math.max(t,0),1));
+  tram.lookAt(pt.clone().add(tan));
+  // Camera follow
+  const off=new THREE.Vector3(-5,5,7);
+  cam.position.lerp(pt.clone().add(off),.06);
+  ctrl.target.lerp(pt,.06);ctrl.update();
+  updDots();requestAnimationFrame(anim);
 }
 
-function showStation(index) {
-  const s = STATIONS[index];
-  stationNum.textContent = `第${index+1}站 / ${STATIONS.length}`;
-  stationName.textContent = s.name;
-  stationNameEn.textContent = s.nameEn;
-  stationDesc.textContent = s.desc;
-  progressDisplay.textContent = `第${index+1}站 / ${STATIONS.length}`;
-  
-  panel.classList.add('show');
-  updateDots();
-  
-  // Position camera nicely at station
-  const pt = new THREE.Vector3(s.pos[0], s.pos[1], s.pos[2]);
-  controls.target.lerp(pt, 0.5);
-  
-  // Handle pause at station (e.g. processing plant 5min, market 8min)
-  if (s.pause > 0) {
-    pausedAtStation = true;
-    pauseRemaining = s.pause;
-    if (autoAdvance) {
-      autoTimer = setInterval(() => {
-        pauseRemaining--;
-        if (pauseRemaining <= 0) {
-          clearInterval(autoTimer);
-          autoTimer = null;
-          pausedAtStation = false;
-          if (index < STATIONS.length - 1) goToStation(index + 1);
-        }
-      }, 1000);
-    }
-  } else {
-    pausedAtStation = false;
-    // Auto advance after 12 seconds at non-pause stations
-    if (autoAdvance && index < STATIONS.length - 1) {
-      if (autoTimer) clearInterval(autoTimer);
-      autoTimer = setTimeout(() => {
-        if (index === currentStation && !isMoving) {
-          goToStation(index + 1);
-        }
-      }, 12000);
-    }
-  }
+function showStn(idx){
+  const s=S[idx];
+  pnum.textContent=`第${idx+1}站 / ${S.length}`;
+  pname.textContent=s.n;pnamee.textContent=s.e;pdesc.textContent=s.t;
+  prog.textContent=`第${idx+1}站 / ${S.length}`;
+  panel.classList.add('show');overlay.classList.add('show');panelOpen=true;
+  updDots();
+  // Free camera at station
+  const pt=new THREE.Vector3(s.p[0],s.p[1]+3,s.p[2]+15);
+  cam.position.lerp(pt,.5);ctrl.target.lerp(new THREE.Vector3(s.p[0],s.p[1],s.p[2]),.5);
+  // Pause handling
+  if(s.d>0){paused=true;pauseRem=s.d;if(autoAdv){autoTim=setInterval(()=>{pauseRem--;if(pauseRem<=0){clearInterval(autoTim);autoTim=null;paused=false;if(idx<S.length-1)goTo(idx+1)}},1000)}}else{paused=false;if(autoAdv&&idx<S.length-1){if(autoTim)clearInterval(autoTim);autoTim=setTimeout(()=>{if(idx===cur&&!moving)goTo(idx+1)},15000)}}
+  // Auto-hide hint
+  hint.textContent='📖 睇完介紹㩒 ✕ 繼續';
+  setTimeout(()=>{if(panelOpen)hint.textContent=''},5000);
 }
 
-function updateDots() {
-  dots.forEach((dot, i) => {
-    dot.className = 'dot';
-    if (i === currentStation) dot.classList.add('active');
-    else if (i < currentStation) dot.classList.add('passed');
-    if (STATIONS[i].pause > 0) dot.classList.add('pause');
+function updDots(){
+  dots.forEach((d,i)=>{d.className='dot';if(i===cur)d.classList.add('active');else if(i<cur)d.classList.add('passed');if(S[i].d>0)d.classList.add('pause')})
+}
+
+function ease(t){return t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2}
+
+// ─── Panel Close ───
+$('panel-close').addEventListener('click',()=>{
+  panel.classList.remove('show');overlay.classList.remove('show');panelOpen=false;
+  if(!moving)hint.textContent='👆 點按前進';
+});
+overlay.addEventListener('click',()=>{$('panel-close').click()});
+
+// ─── Navigation ───
+$('btn-dn').addEventListener('click',e=>{e.stopPropagation();if(moving)return;if(cur<S.length-1)goTo(cur+1)});
+$('btn-up').addEventListener('click',e=>{e.stopPropagation();if(moving)return;if(cur>0)goTo(cur-1)});
+
+// ─── Touch / Click ───
+let tStartY=0,tSwiped=false;
+rdr.domElement.addEventListener('touchstart',e=>{tStartY=e.touches[0].clientY;tSwiped=false},{passive:true});
+rdr.domElement.addEventListener('touchmove',e=>{if(Math.abs(e.touches[0].clientY-tStartY)>30)tSwiped=true},{passive:true});
+rdr.domElement.addEventListener('touchend',e=>{if(tSwiped)return;tap()},{passive:true});
+rdr.domElement.addEventListener('click',()=>{if(window.TouchEvent&&'ontouchstart'in window)return;tap()});
+
+function tap(){
+  if(moving)return;
+  if(paused){paused=false;pauseRem=0;if(autoTim){clearInterval(autoTim);autoTim=null}if(cur<S.length-1)goTo(cur+1);return}
+  if(panelOpen){$('panel-close').click();return}
+  if(cur<S.length-1)goTo(cur+1);else goTo(0);
+}
+
+// ─── Auto-advance toggle (double-tap) ───
+let lastTap=0;
+rdr.domElement.addEventListener('touchstart',e=>{
+  const n=Date.now();if(n-lastTap<500){autoAdv=!autoAdv;autoB.style.display=autoAdv?'block':'none';if(autoAdv&&!moving&&!paused)showStn(cur);if(!autoAdv&&autoTim){clearInterval(autoTim);autoTim=null}}lastTap=n
+},{passive:true});
+
+// ─── Station Selector ───
+const sel=$('selector'),selList=$('sel-list');
+$('selector-btn').addEventListener('click',()=>{
+  selList.innerHTML='';
+  S.forEach((s,i)=>{
+    const d=document.createElement('div');d.className='item';
+    d.innerHTML=`<span><span class="num">${i+1}</span>${s.n}</span><span class="stat">${i===cur?'● 現在地':''}</span>`;
+    d.addEventListener('click',()=>{sel.classList.remove('show');if(!moving)goTo(i)});
+    selList.appendChild(d);
   });
-}
-
-function easeInOutCubic(t) {
-  return t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2;
-}
-
-// ─── Touch / Click Controls ───
-let touchStartY = 0;
-let touchSwiped = false;
-
-renderer.domElement.addEventListener('touchstart', (e) => {
-  touchStartY = e.touches[0].clientY;
-  touchSwiped = false;
-}, { passive: true });
-
-renderer.domElement.addEventListener('touchmove', (e) => {
-  const dy = e.touches[0].clientY - touchStartY;
-  if (Math.abs(dy) > 30) touchSwiped = true;
-}, { passive: true });
-
-renderer.domElement.addEventListener('touchend', (e) => {
-  if (touchSwiped) return;
-  handleTap();
-}, { passive: true });
-
-renderer.domElement.addEventListener('click', () => {
-  if (window.TouchEvent && 'ontouchstart' in window) return; // On mobile, only respond to our touch handler
-  handleTap();
+  sel.classList.add('show');
 });
-
-function handleTap() {
-  if (isMoving) return;
-  
-  if (pausedAtStation) {
-    // Skip pause on tap
-    pausedAtStation = false;
-    pauseRemaining = 0;
-    if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
-    if (currentStation < STATIONS.length - 1) goToStation(currentStation + 1);
-    return;
-  }
-  
-  if (currentStation < STATIONS.length - 1) {
-    goToStation(currentStation + 1);
-  } else {
-    // Loop back to start
-    goToStation(0);
-  }
-}
-
-// Button controls
-document.getElementById('btnNext').addEventListener('click', (e) => {
-  e.stopPropagation();
-  if (isMoving) return;
-  if (currentStation < STATIONS.length - 1) goToStation(currentStation + 1);
-});
-
-document.getElementById('btnPrev').addEventListener('click', (e) => {
-  e.stopPropagation();
-  if (isMoving) return;
-  if (currentStation > 0) goToStation(currentStation - 1);
-});
-
-// Auto-advance toggle (double-tap to toggle)
-let lastTapTime = 0;
-renderer.domElement.addEventListener('touchstart', (e) => {
-  const now = Date.now();
-  if (now - lastTapTime < 500) {
-    autoAdvance = !autoAdvance;
-    autoBadge.style.display = autoAdvance ? 'block' : 'none';
-    if (autoAdvance && !isMoving && !pausedAtStation) {
-      // Start auto-advance from current
-      showStation(currentStation);
-    }
-    if (!autoAdvance && autoTimer) {
-      clearInterval(autoTimer);
-      autoTimer = null;
-    }
-  }
-  lastTapTime = now;
-}, { passive: true });
+$('sel-close').addEventListener('click',()=>sel.classList.remove('show'));
 
 // ─── Resize ───
-window.addEventListener('resize', () => {
-  const w = window.innerWidth;
-  const h = window.innerHeight;
-  camera.aspect = w / h;
-  camera.updateProjectionMatrix();
-  renderer.setSize(w, h);
-  labelRenderer.setSize(w, h);
-});
+window.addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();rdr.setSize(innerWidth,innerHeight);lr.setSize(innerWidth,innerHeight)});
 
-// ─── Render Loop ───
-function render() {
-  requestAnimationFrame(render);
-  controls.update();
-  renderer.render(scene, camera);
-  labelRenderer.render(scene, camera);
-}
+// ─── Render ───
+function r(){requestAnimationFrame(r);ctrl.update();rdr.render(sc,cam);lr.render(sc,cam)}
+load.style.display='none';showStn(0);updDots();r();
 
-// ─── Init ───
-loading.style.display = 'none';
-showStation(0);
-updateDots();
-render();
+// Fog particles rotation
+sc.children.forEach(c=>{if(c.isPoints)setInterval(()=>c.rotation.y+=.002,100)});
 
-// Slowly rotate fog particles - just ambient motion
-scene.children.forEach(child => {
-  if (child.isPoints) {
-    setInterval(() => {
-      child.rotation.y += 0.002;
-    }, 100);
-  }
-});
-
-console.log('🚃 馬鞍山鐵礦電車導賞團已啟動！');
-console.log('👆 點按畫面前往下一站');
-console.log('👆👆 雙指輕按切換自動導賞模式');
-</script>
-</body>
-</html>
+console.log('🚃 馬鞍山 Tram Tour V2 已啟動！');
+</script></body></html>
