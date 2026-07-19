@@ -371,19 +371,24 @@ pts.push(new THREE.Vector3(S[0].p[0],S[0].p[1],S[0].p[2]).sub(sd.clone().multipl
 S.forEach((s,i)=>{const p=new THREE.Vector3(s.p[0],s.p[1],s.p[2]);pts.push(p);if(i<S.length-1){const m=new THREE.Vector3().addVectors(p,new THREE.Vector3(S[i+1].p[0],S[i+1].p[1],S[i+1].p[2])).multiplyScalar(.5);m.y+=1+Math.random()*2;pts.push(m)}});
 const curve=new THREE.CatmullRomCurve3(pts);
 
-// Visual track (rails)
-const tp=curve.getPoints(200);
+// Visual track — dual rails + glow
+const tp=curve.getPoints(300);
+// Main track line (visible)
 const tg=new THREE.BufferGeometry().setFromPoints(tp);
-const tl=new THREE.Line(tg,new THREE.LineBasicMaterial({color:0x554433,transparent:true,opacity:.2}));sc.add(tl);
-// Rail ties
-const tm=new THREE.MeshStandardMaterial({color:0x4a3a2a});
-for(let i=0;i<100;i++){const t=i/100,pt=curve.getPoint(t);const tie=new THREE.Mesh(new THREE.BoxGeometry(1.5,.05,.3),tm);tie.position.copy(pt);tie.position.y+=.05;sc.add(tie)}
+const tl=new THREE.Line(tg,new THREE.LineBasicMaterial({color:0x8a7a5a,transparent:true,opacity:.6,linewidth:2}));sc.add(tl);
+// Parallel second rail
+const tp2=tp.map(p=>{const t=curve.getTangent(tp.indexOf(p)/tp.length);return p.clone().add(new THREE.Vector3(-t.z,0,t.x).multiplyScalar(.5))});
+const tg2=new THREE.BufferGeometry().setFromPoints(tp2);
+const tl2=new THREE.Line(tg2,new THREE.LineBasicMaterial({color:0x8a7a5a,transparent:true,opacity:.6}));sc.add(tl2);
+// Rail ties (more frequent, larger)
+const tm=new THREE.MeshStandardMaterial({color:0x5a4a3a});
+for(let i=0;i<150;i++){const t=i/150,pt=curve.getPoint(t);const tan=curve.getTangent(t);const tie=new THREE.Mesh(new THREE.BoxGeometry(2.2,.08,.4),tm);tie.position.copy(pt);tie.position.y+=.08;tie.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),tan);sc.add(tie)}
 
 // ─── Station Labels ───
 S.forEach((s,i)=>{
   const d=document.createElement('div');
   d.textContent=`${i+1}. ${s.n}`;
-  d.style.cssText='color:#f0e6d3;font-size:16px;font-weight:600;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);padding:4px 12px;border-radius:12px;border:1px solid rgba(201,168,76,.3);pointer-events:none;white-space:nowrap';
+  d.style.cssText='color:#f0e6d3;font-size:26px;font-weight:600;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);padding:6px 16px;border-radius:16px;border:2px solid rgba(201,168,76,.4);pointer-events:none;white-space:nowrap';
   const l=new CSS2DObject(d);l.position.set(s.p[0],s.p[1]+10,s.p[2]);sc.add(l);
 });
 
@@ -423,8 +428,8 @@ function goTo(idx){
 
 function anim(){
   if(!moving)return;
-  // Speed: slow crawl (was 0.012, now 0.004 = 3x slower)
-  progMove+=.004;
+  // Speed: ultra slow (was .012 → .004 → now .0015 = 8x slower than original)
+  progMove+=.0015;
   if(progMove>=1){progMove=1;cur=tgt;moving=false;showStn(cur);return}
   const t0=cur/(S.length-1),t1=tgt/(S.length-1);
   const t=t0+(t1-t0)*ease(progMove);
